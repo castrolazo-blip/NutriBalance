@@ -543,9 +543,16 @@ window.dieta = {
   },
 
   calcPorcionCompleta(alimento, macroObj, tipo) {
-    // Usar siempre la porción base del alimento — los datos ya son por porción
-    const base   = alimento.porcion_base_g || 100;
-    const gramos = base;
+    const base      = alimento.porcion_base_g || 100;
+    const macroBase = tipo === 'prot'  ? (alimento.proteina_g||0) :
+                      tipo === 'carb'  ? (alimento.carbo_g   ||0) :
+                      tipo === 'grasa' ? (alimento.grasa_g   ||0) : 0;
+    // Calcular porciones necesarias (máx 4, mín 1)
+    let porciones = 1;
+    if (macroBase > 0 && macroObj > 0) {
+      porciones = Math.max(1, Math.min(Math.round(macroObj / macroBase), 4));
+    }
+    const gramos = Math.round(porciones * base);
     let _porcion = `${gramos}g`;
     if (alimento.unidad_hogar && alimento.porcion_base_g > 0) {
       const uR = Math.round((gramos / alimento.porcion_base_g) * 2) / 2;
@@ -574,9 +581,10 @@ window.dieta = {
     if (!this.menuGenerado) return;
     const { diaBase, semana, objetivo } = this.menuGenerado;
 
-    // Aplicar ajuste automático al día base
-    const { dia: diaAjustado, ajustes } = this.ajustarMenuContraObjetivo(JSON.parse(JSON.stringify(diaBase)));
-    this.menuGenerado._ajustes = ajustes;
+    // Sin ajuste automático — usar porciones base directamente
+    const diaAjustado = JSON.parse(JSON.stringify(diaBase));
+    const ajustes = 0;
+    this.menuGenerado._ajustes = 0;
 
     cont.innerHTML = this.vistaActiva === 'diario'
       ? this.renderDiario(diaAjustado, objetivo, ajustes) + this.renderBotones()
