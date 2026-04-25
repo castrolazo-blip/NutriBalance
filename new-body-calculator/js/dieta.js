@@ -547,9 +547,9 @@ window.dieta = {
     const macroBase = tipo === 'prot'  ? (alimento.proteina_g||0) :
                       tipo === 'carb'  ? (alimento.carbo_g   ||0) :
                       tipo === 'grasa' ? (alimento.grasa_g   ||0) : 0;
-    const maxG = this.LIMITES_PORCION[alimento.codigo] || 400;
+    const maxG = this.LIMITES_PORCION[alimento.codigo] || 300;
     let gramos = base;
-    if (macroBase > 0) gramos = Math.max(base, Math.min(Math.round((macroObj / macroBase) * base), maxG));
+    if (macroBase > 0) gramos = Math.min(Math.round((macroObj / macroBase) * base), maxG);
     let _porcion = `${gramos}g`;
     if (alimento.unidad_hogar && alimento.porcion_base_g > 0) {
       const uR = Math.round((gramos / alimento.porcion_base_g) * 2) / 2;
