@@ -543,16 +543,9 @@ window.dieta = {
   },
 
   calcPorcionCompleta(alimento, macroObj, tipo) {
-    const base      = alimento.porcion_base_g || 100;
-    const macroBase = tipo === 'prot'  ? (alimento.proteina_g||0) :
-                      tipo === 'carb'  ? (alimento.carbo_g   ||0) :
-                      tipo === 'grasa' ? (alimento.grasa_g   ||0) : 0;
-    // Calcular cuántas porciones se necesitan, máximo 3 porciones
-    let gramos = base;
-    if (macroBase > 0) {
-      const porciones = Math.min(Math.round((macroObj / macroBase) * 2) / 2, 3);
-      gramos = Math.round(Math.max(porciones, 0.5) * base);
-    }
+    // Usar siempre la porción base del alimento — los datos ya son por porción
+    const base   = alimento.porcion_base_g || 100;
+    const gramos = base;
     let _porcion = `${gramos}g`;
     if (alimento.unidad_hogar && alimento.porcion_base_g > 0) {
       const uR = Math.round((gramos / alimento.porcion_base_g) * 2) / 2;
