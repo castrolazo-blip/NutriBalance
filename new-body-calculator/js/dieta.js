@@ -547,9 +547,12 @@ window.dieta = {
     const macroBase = tipo === 'prot'  ? (alimento.proteina_g||0) :
                       tipo === 'carb'  ? (alimento.carbo_g   ||0) :
                       tipo === 'grasa' ? (alimento.grasa_g   ||0) : 0;
-    const maxG = this.LIMITES_PORCION[alimento.codigo] || 300;
+    // Calcular cuántas porciones se necesitan, máximo 3 porciones
     let gramos = base;
-    if (macroBase > 0) gramos = Math.min(Math.round((macroObj / macroBase) * base), maxG);
+    if (macroBase > 0) {
+      const porciones = Math.min(Math.round((macroObj / macroBase) * 2) / 2, 3);
+      gramos = Math.round(Math.max(porciones, 0.5) * base);
+    }
     let _porcion = `${gramos}g`;
     if (alimento.unidad_hogar && alimento.porcion_base_g > 0) {
       const uR = Math.round((gramos / alimento.porcion_base_g) * 2) / 2;
@@ -834,9 +837,10 @@ window.dieta = {
   calcularTotalesComida(comida) {
     let kcal = 0, prot = 0, grasa = 0, carb = 0;
     comida.items.forEach(item => {
-      const g      = item._gramos ?? this._gramosDeItem(item);
+      // Datos en BD son por porcion_base_g — factor solo si _gramos fue ajustado
+      const g      = item._gramos ?? (item.porcion_base_g || 100);
       const base   = item.porcion_base_g || 100;
-      const factor = g / base;
+      const factor = base > 0 ? (g / base) : 1;
       kcal  += (item.kcal       ||0) * factor;
       prot  += (item.proteina_g ||0) * factor;
       grasa += (item.grasa_g    ||0) * factor;
