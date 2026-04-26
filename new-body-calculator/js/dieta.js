@@ -547,12 +547,35 @@ window.dieta = {
     const macroBase = tipo === 'prot'  ? (alimento.proteina_g||0) :
                       tipo === 'carb'  ? (alimento.carbo_g   ||0) :
                       tipo === 'grasa' ? (alimento.grasa_g   ||0) : 0;
-    // Calcular porciones necesarias (máx 4, mín 1)
-    let porciones = 1;
+
+    // Límites máximos realistas por alimento (en gramos)
+    const MAXIMOS = {
+      'A-0003': 150,  // Huevo entero: máx 3 huevos
+      'A-0004': 165,  // Clara de huevo: máx 5 claras
+      'A-0001': 200,  // Pechuga de pollo: máx 2 pechugas
+      'A-0002': 200,  // Muslo de pollo: máx 2
+      'A-0005': 200,  // Carne de res: máx 2 porciones
+      'A-0006': 150,  // Carne molida: máx 1.5 porciones
+      'A-0008': 170,  // Atún: máx 2 latas
+      'A-0010': 200,  // Tilapia: máx 2 filetes
+      'A-0014': 200,  // Proteína en polvo: máx 2 scoops
+      'A-0021': 300,  // Arroz: máx 3 porciones
+      'A-0023': 120,  // Tortilla de maíz: máx 4 tortillas
+      'A-0024': 150,  // Pan: máx 3 porciones
+      'A-0026': 160,  // Avena: máx 2 porciones
+      'A-0028': 300,  // Papa: máx 3 porciones
+      'A-0036': 200,  // Aguacate: máx 2 porciones
+      'A-0039': 64,   // Crema de maní: máx 2 cucharadas
+      'A-0040': 42,   // Aceite de oliva: máx 1 cucharada
+    };
+    const maxG = MAXIMOS[alimento.codigo] || (base * 3);
+
+    let gramos = base;
     if (macroBase > 0 && macroObj > 0) {
-      porciones = Math.max(1, Math.min(Math.round(macroObj / macroBase), 4));
+      const gramosNecesarios = Math.round((macroObj / macroBase) * base);
+      gramos = Math.min(gramosNecesarios, maxG);
+      gramos = Math.max(gramos, base); // mínimo 1 porción
     }
-    const gramos = Math.round(porciones * base);
     let _porcion = `${gramos}g`;
     if (alimento.unidad_hogar && alimento.porcion_base_g > 0) {
       const uR = Math.round((gramos / alimento.porcion_base_g) * 2) / 2;
