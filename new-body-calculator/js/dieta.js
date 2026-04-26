@@ -440,16 +440,41 @@ window.dieta = {
     };
   },
 
-  // ─── Escalar ítems para acercarse al kcalMeta ────────────
+  // ─── Escalar ítems respetando distribución de macros ──────
   escalarItems(items, kcalMeta) {
     if (!items || items.length === 0) return items;
-
-    // Paso 1: escalar porciones de ítems existentes
     let kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
     if (kcalActual <= 0) return items;
 
+    // Paso 1: Reducir carbohidratos si se exceden (prioridad alta)
+    const carbActual = items.reduce((s, i) => s + (i._carb || 0), 0);
+    const carbMeta   = kcalMeta * 0.32 / 4; // 32% kcal en carb → gramos
+    if (carbActual > carbMeta * 1.15) {
+      const factorReducir = carbMeta / carbActual;
+      items = items.map(item => {
+        if (item._alGusto || item._cat !== 'carbohidratos') return item;
+        const porcsNuevas = Math.max(0.5, item._porciones * factorReducir);
+        return this.crearItem(item, porcsNuevas, item._cat, false);
+      });
+    }
+
+    // Paso 2: Escalar proteínas si están bajas
+    const protActual = items.reduce((s, i) => s + (i._prot || 0), 0);
+    const protMeta   = kcalMeta * 0.35 / 4; // 35% kcal en prot → gramos
+    if (protActual < protMeta * 0.85) {
+      const factorProt = protMeta / protActual;
+      items = items.map(item => {
+        if (item._alGusto || item._cat !== 'proteinas') return item;
+        const maxPorc     = item._maxPorciones || 3;
+        const porcsNuevas = Math.max(1, Math.min(item._porciones * factorProt, maxPorc));
+        return this.crearItem(item, porcsNuevas, item._cat, false);
+      });
+    }
+
+    // Paso 3: Si aún faltan kcal, escalar todo proporcionalmente
+    kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
     const ratio = kcalMeta / kcalActual;
-    if (ratio > 1.0) {
+    if (ratio > 1.05) {
       items = items.map(item => {
         if (item._alGusto) return item;
         const maxPorc     = item._maxPorciones || 3;
@@ -458,25 +483,23 @@ window.dieta = {
       });
     }
 
-    // Paso 2: si aún falta más del 5%, agregar carbohidrato o proteína extra
+    // Paso 4: Si aún falta más del 8%, agregar proteína primero, luego grasa
     kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
     const faltante = kcalMeta - kcalActual;
-    if (faltante > kcalMeta * 0.05) {
-      // Buscar un carbohidrato que no esté ya en la comida
+    if (faltante > kcalMeta * 0.08) {
       const codigosEnUso = items.map(i => i.codigo);
+      // Priorizar proteína
       const extras = this.alimentos.filter(a =>
-        (a.categoria === 'carbohidratos' || a.categoria === 'proteinas') &&
+        a.categoria === 'proteinas' &&
         !codigosEnUso.includes(a.codigo) &&
         a.kcal > 0
       );
       if (extras.length > 0) {
-        // Elegir el que más se acerque a cubrir la diferencia
         const mejor = extras.reduce((prev, curr) =>
           Math.abs(curr.kcal - faltante) < Math.abs(prev.kcal - faltante) ? curr : prev
         );
         const porcsExtra = Math.max(1, Math.min(Math.round(faltante / mejor.kcal), this.MAX_PORCIONES[mejor.codigo] || 3));
-        const catExtra   = mejor.categoria === 'proteinas' ? 'proteinas' : 'carbohidratos';
-        items.push(this.crearItem(mejor, porcsExtra, catExtra, false));
+        items.push(this.crearItem(mejor, porcsExtra, 'proteinas', false));
       }
     }
 
