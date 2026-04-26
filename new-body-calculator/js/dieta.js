@@ -45,11 +45,12 @@ window.dieta = {
   // ─── Alimentos por tiempo de comida ──────────────────────
   ALIMENTOS_POR_TIEMPO: {
     desayuno: {
-      proteinas:     ['A-0003','A-0004','A-0014','A-0015','A-0085'],
+      proteinas:     ['A-0003','A-0004','A-0014','A-0015','A-0085','A-0086','A-0012'],
       carbohidratos: ['A-0023','A-0024','A-0025','A-0026','A-0034'],
       grasas:        ['A-0036','A-0039','A-0040'],
       vegetales:     [],
       frutas:        ['A-0043','A-0044','A-0045','A-0046','A-0047'],
+      combinados:    ['A-0090','A-0091','A-0092','A-0093','A-0094'],
     },
     almuerzo: {
       proteinas:     ['A-0001','A-0002','A-0005','A-0006','A-0007','A-0008','A-0010','A-0011','A-0016','A-0017'],
@@ -320,6 +321,17 @@ window.dieta = {
     if (!reglas) return [];
 
     const items = [];
+
+    // Desayuno: a veces usar combinado (pupusa, pancakes, dobladita)
+    if (tiempo === 'desayuno' && reglas.combinados && seed % 3 === 0) {
+      const listaComb = this.candidatos(reglas.combinados, p);
+      const comb = this.elegir(listaComb, seed + 5);
+      if (comb) {
+        const porcs = this.calcularPorciones(comb, kcalMeta * 0.70, 'kcal');
+        items.push(this.crearItem(comb, porcs, 'combinados'));
+        return this.escalarItems(items, kcalMeta);
+      }
+    }
 
     // 1. Elegir proteína principal
     const listaProt = this.candidatos(reglas.proteinas, p);
