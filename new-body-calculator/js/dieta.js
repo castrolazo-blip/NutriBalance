@@ -449,7 +449,7 @@ window.dieta = {
     if (kcalActual <= 0) return items;
 
     const ratio = kcalMeta / kcalActual;
-    if (ratio > 1.05) {
+    if (ratio > 1.0) {
       items = items.map(item => {
         if (item._alGusto) return item;
         const maxPorc     = item._maxPorciones || 3;
@@ -458,10 +458,10 @@ window.dieta = {
       });
     }
 
-    // Paso 2: si aún falta más del 10%, agregar carbohidrato o proteína extra
+    // Paso 2: si aún falta más del 5%, agregar carbohidrato o proteína extra
     kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
     const faltante = kcalMeta - kcalActual;
-    if (faltante > kcalMeta * 0.10) {
+    if (faltante > kcalMeta * 0.05) {
       // Buscar un carbohidrato que no esté ya en la comida
       const codigosEnUso = items.map(i => i.codigo);
       const extras = this.alimentos.filter(a =>
