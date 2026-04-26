@@ -302,13 +302,55 @@ window.dieta = {
     return res;
   },
 
+  // Escalar ítems de una comida para acercarse al kcal objetivo
+  escalarComida(items, kcalObjetivo) {
+    if (!items || items.length === 0) return items;
+    const kcalActual = items.reduce((s, item) => {
+      const g = item._gramos ?? (item.porcion_base_g || 100);
+      const base = item.porcion_base_g || 100;
+      return s + (item.kcal || 0) * (g / base);
+    }, 0);
+    if (kcalActual <= 0) return items;
+    const factor = kcalObjetivo / kcalActual;
+    // Solo escalar si estamos por debajo del 85% del objetivo
+    if (factor <= 1.15) return items;
+    // Escalar cada ítem proporcionalmente con límites por alimento
+    const MAXIMOS = {
+      'A-0003': 150, 'A-0004': 165, 'A-0001': 200, 'A-0002': 200,
+      'A-0005': 200, 'A-0006': 150, 'A-0008': 170, 'A-0010': 200,
+      'A-0021': 300, 'A-0023': 120, 'A-0024': 150, 'A-0026': 160,
+      'A-0028': 300, 'A-0036': 200, 'A-0039': 64,  'A-0040': 42,
+    };
+    return items.map(item => {
+      if (item._porcion?.includes('al gusto')) return item;
+      const base    = item.porcion_base_g || 100;
+      const gActual = item._gramos ?? base;
+      const maxG    = MAXIMOS[item.codigo] || (base * 4);
+      const gNuevo  = Math.min(Math.round(gActual * factor), maxG);
+      const f2      = gNuevo / base;
+      let _porcion  = `${gNuevo}g`;
+      if (item.unidad_hogar && base > 0) {
+        const uR = Math.round((gNuevo / base) * 2) / 2;
+        if (uR >= 0.5 && uR <= 10) {
+          const uhLimpia = item.unidad_hogar.replace(/^[\d.]+\s*/, '').trim();
+          _porcion = `${gNuevo}g (≈ ${uR} ${uhLimpia})`;
+        }
+      }
+      return { ...item, _gramos: gNuevo, _porcion };
+    });
+  },
+
   generarDia(estructura, macros, p, seed) {
     return estructura.map(tiempo => {
       const meta    = macros[tiempo];
       const esSnack = tiempo.startsWith('snack');
-      const items   = esSnack
+      let items     = esSnack
         ? this.armarSnack(meta, p, seed)
         : this.armarComidaPrincipal(tiempo, meta, p, seed);
+      // Escalar ítems para acercarse al kcal objetivo de la comida
+      if (!esSnack && meta?.kcal > 0) {
+        items = this.escalarComida(items, meta.kcal);
+      }
       return {
         tiempo,
         label: this.labelTiempo(tiempo),
