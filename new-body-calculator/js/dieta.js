@@ -431,20 +431,44 @@ window.dieta = {
   // ─── Escalar ítems para acercarse al kcalMeta ────────────
   escalarItems(items, kcalMeta) {
     if (!items || items.length === 0) return items;
-    const kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
+
+    // Paso 1: escalar porciones de ítems existentes
+    let kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
     if (kcalActual <= 0) return items;
 
     const ratio = kcalMeta / kcalActual;
-    // Solo escalar si estamos más del 20% por debajo
-    if (ratio <= 1.20) return items;
+    if (ratio > 1.05) {
+      items = items.map(item => {
+        if (item._alGusto) return item;
+        const maxPorc     = item._maxPorciones || 3;
+        const porcsNuevas = Math.max(1, Math.min(item._porciones * ratio, maxPorc));
+        return this.crearItem(item, porcsNuevas, item._cat, false);
+      });
+    }
 
-    return items.map(item => {
-      if (item._alGusto) return item;
-      const maxPorc    = item._maxPorciones || 3;
-      const base       = item.porcion_base_g || 100;
-      const porcsNuevas = Math.max(1, Math.min(item._porciones * ratio, maxPorc));
-      return this.crearItem(item, porcsNuevas, item._cat, false);
-    });
+    // Paso 2: si aún falta más del 10%, agregar carbohidrato o proteína extra
+    kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
+    const faltante = kcalMeta - kcalActual;
+    if (faltante > kcalMeta * 0.10) {
+      // Buscar un carbohidrato que no esté ya en la comida
+      const codigosEnUso = items.map(i => i.codigo);
+      const extras = this.alimentos.filter(a =>
+        (a.categoria === 'carbohidratos' || a.categoria === 'proteinas') &&
+        !codigosEnUso.includes(a.codigo) &&
+        a.kcal > 0
+      );
+      if (extras.length > 0) {
+        // Elegir el que más se acerque a cubrir la diferencia
+        const mejor = extras.reduce((prev, curr) =>
+          Math.abs(curr.kcal - faltante) < Math.abs(prev.kcal - faltante) ? curr : prev
+        );
+        const porcsExtra = Math.max(1, Math.min(Math.round(faltante / mejor.kcal), this.MAX_PORCIONES[mejor.codigo] || 3));
+        const catExtra   = mejor.categoria === 'proteinas' ? 'proteinas' : 'carbohidratos';
+        items.push(this.crearItem(mejor, porcsExtra, catExtra, false));
+      }
+    }
+
+    return items;
   },
 
   // ─── Helpers ─────────────────────────────────────────────
