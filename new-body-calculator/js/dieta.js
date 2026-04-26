@@ -55,14 +55,14 @@ window.dieta = {
     almuerzo: {
       proteinas:     ['A-0001','A-0002','A-0005','A-0006','A-0007','A-0008','A-0010','A-0011','A-0016','A-0017'],
       carbohidratos: ['A-0021','A-0022','A-0023','A-0027','A-0028','A-0030','A-0031','A-0035'],
-      grasas:        ['A-0036','A-0039'],
+      grasas:        ['A-0036','A-0039','A-0040','A-0041','A-0042','A-0043'],
       vegetales:     'todas',
       frutas:        [],
     },
     cena: {
       proteinas:     ['A-0001','A-0003','A-0004','A-0005','A-0008','A-0010','A-0012','A-0014','A-0016','A-0017'],
       carbohidratos: ['A-0021','A-0023','A-0028','A-0029','A-0025'],
-      grasas:        ['A-0036'],
+      grasas:        ['A-0036','A-0040','A-0041','A-0043','A-0044'],
       vegetales:     'todas',
       frutas:        [],
     },
@@ -333,19 +333,19 @@ window.dieta = {
       }
     }
 
-    // 1. Elegir proteína principal
+    // 1. Elegir proteína principal (35% de kcal de la comida)
     const listaProt = this.candidatos(reglas.proteinas, p);
     const prot = this.elegir(listaProt, seed);
     if (prot) {
-      const porcs = this.calcularPorciones(prot, kcalMeta * 0.40, 'kcal');
+      const porcs = this.calcularPorciones(prot, kcalMeta * 0.35, 'kcal');
       items.push(this.crearItem(prot, porcs, 'proteinas'));
     }
 
-    // 2. Elegir carbohidrato
+    // 2. Elegir carbohidrato (32% de kcal de la comida)
     const listaCarb = this.candidatos(reglas.carbohidratos, p);
     const carb = this.elegir(listaCarb, seed + 1);
     if (carb) {
-      const porcs = this.calcularPorciones(carb, kcalMeta * 0.40, 'kcal');
+      const porcs = this.calcularPorciones(carb, kcalMeta * 0.32, 'kcal');
       items.push(this.crearItem(carb, porcs, 'carbohidratos'));
     }
 
@@ -364,12 +364,13 @@ window.dieta = {
       }
     }
 
-    // 5. Grasa en desayuno
-    if (tiempo === 'desayuno' && reglas.grasas.length > 0) {
+    // 5. Grasa en todas las comidas principales
+    if (reglas.grasas && reglas.grasas.length > 0) {
       const listaGrasa = this.candidatos(reglas.grasas, p);
       const grasa = this.elegir(listaGrasa, seed + 3);
       if (grasa) {
-        const porcs = this.calcularPorciones(grasa, kcalMeta * 0.20, 'kcal');
+        const pctGrasa = tiempo === 'desayuno' ? 0.25 : 0.20;
+        const porcs = this.calcularPorciones(grasa, kcalMeta * pctGrasa, 'kcal');
         items.push(this.crearItem(grasa, porcs, 'grasas'));
       }
     }
