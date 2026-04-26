@@ -1,11 +1,15 @@
 /* ============================================================
-   MÓDULO M7: MOTOR DE DIETA INTELIGENTE
+   MÓDULO M7: MOTOR DE DIETA INTELIGENTE v4
    NutriBalance · by Ronald Castro
-   v3 — Integración M8 (recetas) + Motor de ajuste automático
+   ============================================================
+   DATOS EN SUPABASE: kcal/proteina_g/grasa_g/carbo_g son
+   valores POR porcion_base_g (no por 100g).
+   Ejemplo: Huevo entero → 72 kcal / 50g (1 huevo)
    ============================================================ */
 
 window.dieta = {
 
+  // ─── Estado ──────────────────────────────────────────────
   perfilActual:  null,
   configActual:  null,
   calculoActual: null,
@@ -14,55 +18,81 @@ window.dieta = {
   preferencias:  null,
   vistaActiva:   'diario',
 
-  // ─── REGLAS POR TIEMPO DE COMIDA ─────────────────────────
-  MENU_RULES: {
+  // ─── Porciones máximas por alimento (en unidades) ────────
+  MAX_PORCIONES: {
+    'A-0003': 3,   // Huevo entero: máx 3 huevos
+    'A-0004': 5,   // Clara de huevo: máx 5 claras
+    'A-0001': 2,   // Pechuga de pollo: máx 2
+    'A-0002': 2,   // Muslo de pollo: máx 2
+    'A-0005': 2,   // Carne de res: máx 2
+    'A-0006': 2,   // Carne molida: máx 2
+    'A-0008': 2,   // Atún: máx 2 latas
+    'A-0010': 2,   // Tilapia: máx 2 filetes
+    'A-0014': 2,   // Proteína en polvo: máx 2 scoops
+    'A-0021': 3,   // Arroz: máx 3 porciones
+    'A-0022': 3,   // Arroz integral: máx 3
+    'A-0023': 4,   // Tortilla de maíz: máx 4
+    'A-0024': 3,   // Pan francés: máx 3
+    'A-0026': 2,   // Avena: máx 2 porciones
+    'A-0028': 3,   // Papa: máx 3
+    'A-0029': 3,   // Camote: máx 3
+    'A-0016': 3,   // Frijoles: máx 3
+    'A-0036': 2,   // Aguacate: máx 2 porciones
+    'A-0039': 2,   // Crema de maní: máx 2 cucharadas
+    'A-0040': 1,   // Aceite de oliva: máx 1 cucharada
+  },
+
+  // ─── Alimentos por tiempo de comida ──────────────────────
+  ALIMENTOS_POR_TIEMPO: {
     desayuno: {
       proteinas:     ['A-0003','A-0004','A-0014','A-0015','A-0085'],
       carbohidratos: ['A-0023','A-0024','A-0025','A-0026','A-0034'],
       grasas:        ['A-0036','A-0039','A-0040'],
-      combinados:    ['A-0076','A-0075']
+      vegetales:     [],
+      frutas:        ['A-0043','A-0044','A-0045','A-0046','A-0047'],
     },
     almuerzo: {
       proteinas:     ['A-0001','A-0002','A-0005','A-0006','A-0007','A-0008','A-0010','A-0011','A-0016','A-0017'],
       carbohidratos: ['A-0021','A-0022','A-0023','A-0027','A-0028','A-0030','A-0031','A-0035'],
-      combinados:    ['A-0068','A-0069','A-0070','A-0071','A-0074','A-0077']
+      grasas:        ['A-0036','A-0039'],
+      vegetales:     'todas',
+      frutas:        [],
     },
     cena: {
       proteinas:     ['A-0001','A-0003','A-0004','A-0005','A-0008','A-0010','A-0012','A-0014','A-0016','A-0017'],
       carbohidratos: ['A-0021','A-0023','A-0028','A-0029','A-0025'],
-      combinados:    ['A-0068','A-0074']
-    }
+      grasas:        ['A-0036'],
+      vegetales:     'todas',
+      frutas:        [],
+    },
+    snack1: {
+      proteinas:     ['A-0003','A-0004','A-0014','A-0085'],
+      carbohidratos: ['A-0025','A-0026','A-0034'],
+      grasas:        ['A-0039','A-0040'],
+      vegetales:     [],
+      frutas:        'todas',
+    },
+    snack2: {
+      proteinas:     ['A-0003','A-0004','A-0014','A-0085'],
+      carbohidratos: ['A-0025','A-0026','A-0034'],
+      grasas:        ['A-0039','A-0040'],
+      vegetales:     [],
+      frutas:        'todas',
+    },
   },
 
-  // ─── DISTRIBUCIÓN CALÓRICA ───────────────────────────────
+  // ─── Distribución calórica por número de comidas ─────────
   DISTRIBUCION: {
     3: { desayuno:0.30, almuerzo:0.40, cena:0.30 },
     4: { desayuno:0.25, almuerzo:0.35, cena:0.25, snack1:0.15 },
-    5: { desayuno:0.25, almuerzo:0.30, cena:0.25, snack1:0.10, snack2:0.10 }
-  },
-  DIST_PROT: {
-    3: { desayuno:0.28, almuerzo:0.42, cena:0.30 },
-    4: { desayuno:0.25, almuerzo:0.35, cena:0.28, snack1:0.12 },
-    5: { desayuno:0.25, almuerzo:0.32, cena:0.26, snack1:0.09, snack2:0.08 }
+    5: { desayuno:0.22, almuerzo:0.30, cena:0.22, snack1:0.13, snack2:0.13 },
   },
 
   PREF_DEFAULT: {
-    num_comidas:       4,
-    ayuno:             false,
-    comida_llevar:     false,
-    tiene_microondas:  true,
-    snacks_portables:  true,
-    nivel_practicidad: 2,
-    modo:              'salvadoreno',
-    restricciones:     []
-  },
-
-  // ─── LÍMITES DE PORCIÓN ──────────────────────────────────
-  LIMITES_PORCION: {
-    'A-0003':200,'A-0004':165,'A-0023':120,'A-0024':150,
-    'A-0025':84, 'A-0026':80, 'A-0034':80, 'A-0036':200,
-    'A-0037':42, 'A-0038':42, 'A-0039':42, 'A-0040':64,
-    'A-0041':56, 'A-0042':56, 'A-0044':30, 'A-0085':60
+    num_comidas:      4,
+    ayuno:            false,
+    modo:             'salvadoreno',
+    restricciones:    [],
   },
 
   // ─────────────────────────────────────────────────────────
@@ -103,7 +133,6 @@ window.dieta = {
     document.getElementById('page-dieta').innerHTML = `
       <div class="page-header">
         <h1 class="page-title">Mi Dieta Sugerida</h1>
-        <p class="page-subtitle">Plan alimentario basado en tus macros</p>
       </div>
       <div class="card text-center" style="padding:40px 20px;">
         <div style="font-size:3rem;margin-bottom:12px;">📋</div>
@@ -123,7 +152,10 @@ window.dieta = {
         <p class="page-subtitle">${window.ui.formatearNumero(r.kcal_objetivo)} kcal · ${r.proteina_g}g P · ${r.grasa_g}g G · ${r.carbo_g}g C</p>
       </div>
       ${this.renderPanelPreferencias()}
-      ${this.renderToggleVista()}
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn-vista ${this.vistaActiva==='diario'?'activa':''}" data-vista="diario">📅 Menú del día</button>
+        <button class="btn-vista ${this.vistaActiva==='semanal'?'activa':''}" data-vista="semanal">🗓️ Menú semanal</button>
+      </div>
       <div id="dieta-menu-container">
         <div class="loading"><div class="spinner"></div></div>
       </div>
@@ -132,61 +164,40 @@ window.dieta = {
     this.generarYRenderMenu();
   },
 
-  renderToggleVista() {
-    return `
-    <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button class="btn-vista ${this.vistaActiva==='diario'?'activa':''}" data-vista="diario">📅 Menú del día</button>
-      <button class="btn-vista ${this.vistaActiva==='semanal'?'activa':''}" data-vista="semanal">🗓️ Menú semanal</button>
-    </div>`;
-  },
-
   renderPanelPreferencias() {
     const p = this.preferencias;
-    const modoLabels = { salvadoreno:'🇸🇻 Salvadoreño', fitness:'💪 Fitness', economico:'💰 Económico', mixto:'🔀 Mixto' };
-    const niveles    = ['Estructurado','Práctico','Muy práctico'];
+    const modos = { salvadoreno:'🇸🇻 Salvadoreño', fitness:'💪 Fitness', economico:'💰 Económico' };
     return `
     <div class="card mb-3">
       <div style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" id="toggle-prefs">
         <span style="font-weight:600;">⚙️ Configurar mi menú</span>
-        <span id="arrow-prefs" style="font-size:0.75rem;transition:transform 0.25s;">▼</span>
+        <span id="arrow-prefs" style="transition:transform 0.25s;">▼</span>
       </div>
       <div id="prefs-body" style="display:none;margin-top:14px;">
-        <div class="prefs-grid">
-          <div class="pref-item">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div>
             <label class="pref-label">🍴 Comidas al día</label>
             <div class="btn-group-pref">
               ${[3,4,5].map(n=>`<button class="btn-pref ${p.num_comidas===n?'activo':''}" data-pref="num_comidas" data-val="${n}">${n} comidas</button>`).join('')}
             </div>
           </div>
-          <div class="pref-item">
-            <label class="pref-label">🎯 Nivel de practicidad</label>
+          <div>
+            <label class="pref-label">🌟 Estilo</label>
             <div class="btn-group-pref">
-              ${niveles.map((lbl,i)=>`<button class="btn-pref ${p.nivel_practicidad===(i+1)?'activo':''}" data-pref="nivel_practicidad" data-val="${i+1}">${lbl}</button>`).join('')}
+              ${Object.entries(modos).map(([k,v])=>`<button class="btn-pref ${p.modo===k?'activo':''}" data-pref="modo" data-val="${k}">${v}</button>`).join('')}
             </div>
           </div>
-          <div class="pref-item">
-            <label class="pref-label">🌟 Estilo de menú</label>
-            <div class="btn-group-pref">
-              ${Object.entries(modoLabels).map(([k,v])=>`<button class="btn-pref ${p.modo===k?'activo':''}" data-pref="modo" data-val="${k}">${v}</button>`).join('')}
-            </div>
-          </div>
-          <div class="pref-item">
-            <label class="pref-label">🔧 Opciones</label>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
-              ${this.chk('ayuno','⏱️ Ayuno intermitente',p.ayuno)}
-              ${this.chk('comida_llevar','🎒 Comida para llevar',p.comida_llevar)}
-              ${this.chk('tiene_microondas','🔥 Tengo microondas',p.tiene_microondas)}
-              ${this.chk('snacks_portables','🍌 Snacks portables',p.snacks_portables)}
-            </div>
-          </div>
-          <div class="pref-item">
+          <div>
             <label class="pref-label">🚫 Restricciones</label>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
               ${this.chkR('sin_lacteos','🥛 Sin lácteos',p.restricciones)}
               ${this.chkR('sin_gluten','🌾 Sin gluten',p.restricciones)}
               ${this.chkR('sin_cerdo','🐷 Sin cerdo',p.restricciones)}
               ${this.chkR('vegetariano','🥦 Vegetariano',p.restricciones)}
             </div>
+          </div>
+          <div>
+            ${this.chk('ayuno','⏱️ Ayuno intermitente (sin desayuno)',p.ayuno)}
           </div>
         </div>
         <button class="btn btn-primary mt-3" id="btn-aplicar-prefs" style="width:100%;">✅ Aplicar y generar menú</button>
@@ -198,17 +209,16 @@ window.dieta = {
     return `<label class="check-pref"><input type="checkbox" data-check="${key}" ${val?'checked':''}><span>${label}</span></label>`;
   },
   chkR(key, label, lista) {
-    return `<label class="check-pref"><input type="checkbox" data-restr="${key}" ${lista.includes(key)?'checked':''}><span>${label}</span></label>`;
+    return `<label class="check-pref"><input type="checkbox" data-restr="${key}" ${(lista||[]).includes(key)?'checked':''}><span>${label}</span></label>`;
   },
 
-  // ─────────────────────────────────────────────────────────
   configurarEventos() {
     document.getElementById('toggle-prefs')?.addEventListener('click', () => {
-      const body  = document.getElementById('prefs-body');
+      const body = document.getElementById('prefs-body');
       const arrow = document.getElementById('arrow-prefs');
-      const open  = body.style.display !== 'none';
-      body.style.display    = open ? 'none'  : 'block';
-      arrow.style.transform = open ? ''      : 'rotate(180deg)';
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      arrow.style.transform = open ? '' : 'rotate(180deg)';
     });
     document.querySelectorAll('[data-pref]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -225,8 +235,9 @@ window.dieta = {
     document.querySelectorAll('[data-restr]').forEach(chk => {
       chk.addEventListener('change', () => {
         const key = chk.dataset.restr;
+        if (!this.preferencias.restricciones) this.preferencias.restricciones = [];
         if (chk.checked) { if (!this.preferencias.restricciones.includes(key)) this.preferencias.restricciones.push(key); }
-        else              { this.preferencias.restricciones = this.preferencias.restricciones.filter(r=>r!==key); }
+        else { this.preferencias.restricciones = this.preferencias.restricciones.filter(r=>r!==key); }
       });
     });
     document.getElementById('btn-aplicar-prefs')?.addEventListener('click', async () => {
@@ -245,9 +256,10 @@ window.dieta = {
     });
   },
 
-  // ─────────────────────────────────────────────────────────
-  // ALGORITMO PRINCIPAL
-  // ─────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════
+  // GENERACIÓN DEL MENÚ
+  // ═════════════════════════════════════════════════════════
+
   generarYRenderMenu() {
     const cont = document.getElementById('dieta-menu-container');
     cont.innerHTML = `<div class="loading"><div class="spinner"></div><p style="margin-top:8px;font-size:0.9rem;color:var(--color-texto-secundario);">Generando tu menú...</p></div>`;
@@ -257,7 +269,7 @@ window.dieta = {
         this.renderMenuEnContenedor();
       } catch(e) {
         console.error(e);
-        cont.innerHTML = `<div class="alert alert-warning">⚠️ Error al generar el menú. Revisa tu perfil.</div>`;
+        cont.innerHTML = `<div class="alert alert-warning">⚠️ Error al generar el menú: ${e.message}</div>`;
       }
     }, 150);
   },
@@ -265,220 +277,181 @@ window.dieta = {
   generarMenu() {
     const r = this.calculoActual;
     const p = this.preferencias;
-    const objetivo   = { kcal: r.kcal_objetivo, prot: r.proteina_g, grasa: r.grasa_g, carb: r.carbo_g };
-    const estructura = this.definirEstructura(p);
-    const macros     = this.distribuirMacros(objetivo, estructura, p);
-    const diaBase    = this.generarDia(estructura, macros, p, 0);
-    const semana     = Array.from({ length: 7 }, (_, i) => this.generarDia(estructura, macros, p, i * 7));
-    return { diaBase, semana, objetivo, estructura, macros, _ajustes: [] };
+    const objetivo = { kcal: r.kcal_objetivo, prot: r.proteina_g, grasa: r.grasa_g, carb: r.carbo_g };
+
+    // Definir estructura de comidas
+    const estructura = [];
+    if (!p.ayuno) estructura.push('desayuno');
+    estructura.push('almuerzo');
+    if (p.num_comidas >= 4) estructura.push('snack1');
+    if (p.num_comidas >= 5) estructura.push('snack2');
+    estructura.push('cena');
+
+    // Distribución calórica
+    const dist = this.DISTRIBUCION[p.num_comidas] || this.DISTRIBUCION[4];
+
+    // Generar día base y semana
+    const diaBase = this.generarDia(estructura, dist, objetivo, p, 0);
+    const semana  = Array.from({ length: 7 }, (_, i) => this.generarDia(estructura, dist, objetivo, p, i * 13));
+
+    return { diaBase, semana, objetivo, estructura, dist };
   },
 
-  definirEstructura(p) {
-    const t = [];
-    if (!p.ayuno) t.push('desayuno');
-    t.push('almuerzo');
-    if (p.num_comidas >= 4) t.push('snack1');
-    if (p.num_comidas >= 5) t.push('snack2');
-    t.push('cena');
-    return t;
-  },
-
-  distribuirMacros(objetivo, estructura, p) {
-    const n     = p.num_comidas;
-    const dKcal = this.DISTRIBUCION[n] || this.DISTRIBUCION[4];
-    const dProt = this.DIST_PROT[n]    || this.DIST_PROT[4];
-    const res   = {};
-    estructura.forEach(t => {
-      const pk = dKcal[t] || 0.10;
-      const pp = dProt[t] || 0.10;
-      res[t] = {
-        kcal:  Math.round(objetivo.kcal  * pk),
-        prot:  Math.round(objetivo.prot  * pp),
-        grasa: Math.round(objetivo.grasa * pk),
-        carb:  Math.round(objetivo.carb  * pk),
-        pct:   Math.round(pk * 100)
-      };
-    });
-    return res;
-  },
-
-  // Escalar ítems de una comida para acercarse al kcal objetivo
-  escalarComida(items, kcalObjetivo) {
-    if (!items || items.length === 0) return items;
-    const kcalActual = items.reduce((s, item) => {
-      const g = item._gramos ?? (item.porcion_base_g || 100);
-      const base = item.porcion_base_g || 100;
-      return s + (item.kcal || 0) * (g / base);
-    }, 0);
-    if (kcalActual <= 0) return items;
-    const factor = kcalObjetivo / kcalActual;
-    // Solo escalar si estamos por debajo del 85% del objetivo
-    if (factor <= 1.15) return items;
-    // Escalar cada ítem proporcionalmente con límites por alimento
-    const MAXIMOS = {
-      'A-0003': 150, 'A-0004': 165, 'A-0001': 200, 'A-0002': 200,
-      'A-0005': 200, 'A-0006': 150, 'A-0008': 170, 'A-0010': 200,
-      'A-0021': 300, 'A-0023': 120, 'A-0024': 150, 'A-0026': 160,
-      'A-0028': 300, 'A-0036': 200, 'A-0039': 64,  'A-0040': 42,
-    };
-    return items.map(item => {
-      if (item._porcion?.includes('al gusto')) return item;
-      const base    = item.porcion_base_g || 100;
-      const gActual = item._gramos ?? base;
-      const maxG    = MAXIMOS[item.codigo] || (base * 4);
-      const gNuevo  = Math.min(Math.round(gActual * factor), maxG);
-      const f2      = gNuevo / base;
-      let _porcion  = `${gNuevo}g`;
-      if (item.unidad_hogar && base > 0) {
-        const uR = Math.round((gNuevo / base) * 2) / 2;
-        if (uR >= 0.5 && uR <= 10) {
-          const uhLimpia = item.unidad_hogar.replace(/^[\d.]+\s*/, '').trim();
-          _porcion = `${gNuevo}g (≈ ${uR} ${uhLimpia})`;
-        }
-      }
-      return { ...item, _gramos: gNuevo, _porcion };
-    });
-  },
-
-  generarDia(estructura, macros, p, seed) {
+  generarDia(estructura, dist, objetivo, p, seed) {
     return estructura.map(tiempo => {
-      const meta    = macros[tiempo];
-      const esSnack = tiempo.startsWith('snack');
-      let items     = esSnack
-        ? this.armarSnack(meta, p, seed)
-        : this.armarComidaPrincipal(tiempo, meta, p, seed);
-      // Escalar ítems para acercarse al kcal objetivo de la comida
-      if (!esSnack && meta?.kcal > 0) {
-        items = this.escalarComida(items, meta.kcal);
-      }
+      const pctKcal  = dist[tiempo] || 0.20;
+      const kcalMeta = Math.round(objetivo.kcal * pctKcal);
+      const items    = tiempo.startsWith('snack')
+        ? this.armarSnack(tiempo, kcalMeta, p, seed)
+        : this.armarComida(tiempo, kcalMeta, objetivo, p, seed);
+
       return {
         tiempo,
-        label: this.labelTiempo(tiempo),
-        meta,
+        label:    this.labelTiempo(tiempo),
+        kcalMeta,
         items,
-        valido: esSnack || items.some(i => i._cat === 'proteinas' || i._cat === 'combinados')
       };
     });
   },
 
-  // ─────────────────────────────────────────────────────────
-  // COMIDA PRINCIPAL
-  // ─────────────────────────────────────────────────────────
-  armarComidaPrincipal(tiempo, meta, p, seed) {
-    const reglas   = this.MENU_RULES[tiempo];
+  // ─── Armar comida principal ───────────────────────────────
+  armarComida(tiempo, kcalMeta, objetivo, p, seed) {
+    const reglas = this.ALIMENTOS_POR_TIEMPO[tiempo];
     if (!reglas) return [];
-    const items    = [];
-    const esDeficit = this.perfilActual?.meta === 'deficit';
-    const modoFit   = p.modo === 'fitness';
 
-    const candidatos = (codigos) => {
-      let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c)).filter(Boolean);
-      lista = this.aplicarRestricciones(lista, p);
-      if (p.nivel_practicidad >= 3) {
-        const basicos = lista.filter(a => a.etiquetas?.includes('basico'));
-        if (basicos.length > 0) lista = basicos;
-      }
-      return lista;
-    };
+    const items = [];
 
-    if (tiempo === 'desayuno') {
-      let cProt = [...reglas.proteinas];
-      if (p.modo === 'salvadoreno' || p.modo === 'economico') {
-        cProt = ['A-0003','A-0004', ...cProt.filter(c => !['A-0003','A-0004'].includes(c))];
-      } else if (modoFit) {
-        cProt = ['A-0014','A-0085','A-0004', ...cProt.filter(c => !['A-0014','A-0085','A-0004'].includes(c))];
-      }
-      const prots  = candidatos(cProt);
-      const carbos = candidatos(reglas.carbohidratos);
-      const grasas = candidatos(reglas.grasas);
-      const prot   = this.elegir(prots,  seed);
-      const carb   = this.elegir(carbos, seed + 1);
-      const grasa  = this.elegir(grasas, seed + 2);
-      if (prot)  { const pc=this.calcPorcionCompleta(prot,  meta.prot,        'prot');  items.push({...prot,  ...pc, _cat:'proteinas'    }); }
-      if (carb)  { const pc=this.calcPorcionCompleta(carb,  meta.carb * 0.7,  'carb');  items.push({...carb,  ...pc, _cat:'carbohidratos'}); }
-      if (grasa) { const pc=this.calcPorcionCompleta(grasa, meta.grasa * 0.4, 'grasa'); items.push({...grasa, ...pc, _cat:'grasas'       }); }
+    // 1. Elegir proteína principal
+    const listaProt = this.candidatos(reglas.proteinas, p);
+    const prot = this.elegir(listaProt, seed);
+    if (prot) {
+      const porcs = this.calcularPorciones(prot, kcalMeta * 0.40, 'kcal');
+      items.push(this.crearItem(prot, porcs, 'proteinas'));
     }
 
-    else if (tiempo === 'almuerzo') {
-      if (p.comida_llevar && p.nivel_practicidad >= 2) {
-        const comb  = candidatos(['A-0074','A-0068','A-0069','A-0070','A-0071','A-0077','A-0008']);
-        const plato = this.elegir(comb, seed);
-        if (plato) { items.push({...plato, _porcion:this.porcion(plato, meta.kcal, 'kcal'), _cat:'combinados'}); return items; }
-      }
-      let cProt = [...reglas.proteinas];
-      let cCarb = [...reglas.carbohidratos];
-      if (p.modo === 'salvadoreno' || p.modo === 'economico') {
-        cProt = ['A-0001','A-0002','A-0005','A-0006', ...cProt];
-        cCarb = ['A-0021','A-0023', ...cCarb];
-      } else if (modoFit) {
-        cProt = ['A-0001','A-0010','A-0008', ...cProt];
-        cCarb = ['A-0022','A-0035','A-0021', ...cCarb];
-      }
-      const prots = candidatos([...new Set(cProt)]);
-      const carbos = candidatos([...new Set(cCarb)]);
-      const vegs   = this.aplicarRestricciones(this.alimentos.filter(a => a.categoria === 'vegetales'), p);
-      const prot   = this.elegir(prots,  seed);
-      const carb   = this.elegir(carbos, seed + 1);
-      const veg    = this.elegir(vegs,   seed + 3);
-      if (prot) { const pc=this.calcPorcionCompleta(prot,  meta.prot,       'prot');  items.push({...prot,  ...pc, _cat:'proteinas'    }); }
-      if (carb) { const pc=this.calcPorcionCompleta(carb,  meta.carb * 0.6, 'carb');  items.push({...carb,  ...pc, _cat:'carbohidratos'}); }
-      if (veg)  items.push({...veg, _porcion:'1 porción al gusto', _cat:'vegetales'});
-      if ((p.modo === 'salvadoreno' || p.modo === 'economico') && prot && !['A-0016','A-0017'].includes(prot.codigo)) {
-        const frijol = this.alimentos.find(a => a.codigo === 'A-0016');
-        if (frijol) items.push({...frijol, _porcion:'2-3 cucharadas', _cat:'proteinas'});
+    // 2. Elegir carbohidrato
+    const listaCarb = this.candidatos(reglas.carbohidratos, p);
+    const carb = this.elegir(listaCarb, seed + 1);
+    if (carb) {
+      const porcs = this.calcularPorciones(carb, kcalMeta * 0.40, 'kcal');
+      items.push(this.crearItem(carb, porcs, 'carbohidratos'));
+    }
+
+    // 3. Agregar vegetal (almuerzo y cena)
+    if (reglas.vegetales === 'todas') {
+      const vegs = this.alimentos.filter(a => a.categoria === 'vegetales');
+      const veg  = this.elegir(vegs, seed + 2);
+      if (veg) items.push(this.crearItem(veg, 1, 'vegetales', true));
+    }
+
+    // 4. Frijoles en almuerzo (modo salvadoreño)
+    if (tiempo === 'almuerzo' && (p.modo === 'salvadoreno' || p.modo === 'economico')) {
+      const frijol = this.alimentos.find(a => a.codigo === 'A-0016');
+      if (frijol && !items.find(i => i.codigo === 'A-0016')) {
+        items.push(this.crearItem(frijol, 1, 'proteinas'));
       }
     }
 
-    else if (tiempo === 'cena') {
-      let cProt = [...reglas.proteinas];
-      if (modoFit || esDeficit) {
-        cProt = ['A-0001','A-0010','A-0004','A-0008','A-0014', ...cProt];
-      } else if (p.modo === 'salvadoreno') {
-        cProt = ['A-0003','A-0016','A-0017','A-0001', ...cProt];
+    // 5. Grasa en desayuno
+    if (tiempo === 'desayuno' && reglas.grasas.length > 0) {
+      const listaGrasa = this.candidatos(reglas.grasas, p);
+      const grasa = this.elegir(listaGrasa, seed + 3);
+      if (grasa) {
+        const porcs = this.calcularPorciones(grasa, kcalMeta * 0.20, 'kcal');
+        items.push(this.crearItem(grasa, porcs, 'grasas'));
       }
-      const prots = candidatos([...new Set(cProt)]);
-      const vegs  = this.aplicarRestricciones(this.alimentos.filter(a => a.categoria === 'vegetales'), p);
-      const prot  = this.elegir(prots, seed);
-      const veg   = this.elegir(vegs,  seed + 3);
-      if (prot) { const pc=this.calcPorcionCompleta(prot, meta.prot, 'prot'); items.push({...prot, ...pc, _cat:'proteinas'}); }
-      if (veg)  items.push({...veg, _porcion:'1 porción al gusto', _cat:'vegetales'});
-      if (!esDeficit) {
-        const carbos = candidatos(reglas.carbohidratos);
-        const carb   = this.elegir(carbos, seed + 1);
-        if (carb) { const pc=this.calcPorcionCompleta(carb, meta.carb * 0.4, 'carb'); items.push({...carb, ...pc, _cat:'carbohidratos'}); }
-      } else if (p.modo === 'salvadoreno') {
-        const tortilla = this.alimentos.find(a => a.codigo === 'A-0023');
-        if (tortilla) items.push({...tortilla, _porcion:'1 tortilla', _cat:'carbohidratos'});
-      }
+    }
+
+    // 6. Escalar todo para acercarse al kcalMeta
+    return this.escalarItems(items, kcalMeta);
+  },
+
+  // ─── Armar snack ─────────────────────────────────────────
+  armarSnack(tiempo, kcalMeta, p, seed) {
+    const reglas  = this.ALIMENTOS_POR_TIEMPO[tiempo];
+    const items   = [];
+
+    // Fruta
+    const frutas = this.alimentos.filter(a => a.categoria === 'frutas');
+    const fruta  = this.elegir(frutas, seed + 10);
+    if (fruta) items.push(this.crearItem(fruta, 1, 'frutas'));
+
+    // Proteína portable (modo fitness)
+    if (p.modo === 'fitness') {
+      const listaProt = this.candidatos(reglas.proteinas || [], p);
+      const prot = this.elegir(listaProt, seed + 11);
+      if (prot) items.push(this.crearItem(prot, 1, 'proteinas'));
     }
 
     return items;
   },
 
-  armarSnack(meta, p, seed) {
-    const items = [];
-    const portables = this.aplicarRestricciones(
-      this.alimentos.filter(a => a.etiquetas?.includes('portable')), p
-    );
-    const frutas = portables.filter(a => a.categoria === 'frutas');
-    const prots  = portables.filter(a => a.categoria === 'proteinas');
-    const otros  = portables.filter(a => a.categoria === 'grasas');
-    if (p.nivel_practicidad <= 2) {
-      const fruta = this.elegir(frutas, seed + 10);
-      const prot  = this.elegir(prots,  seed + 11);
-      if (fruta) items.push({...fruta, _porcion: fruta.unidad_hogar || '1 unidad',   _cat:'frutas'   });
-      if (prot)  items.push({...prot,  _porcion: prot.unidad_hogar  || '1 porción',  _cat:'proteinas'});
-    } else {
-      const fruta = this.elegir(frutas, seed + 10);
-      const nuez  = this.elegir(otros,  seed + 12);
-      if (fruta) items.push({...fruta, _porcion: fruta.unidad_hogar || '1 unidad',        _cat:'frutas'});
-      if (nuez)  items.push({...nuez,  _porcion: nuez.unidad_hogar  || '1 puñado pequeño', _cat:'grasas'});
+  // ─── Calcular porciones para un alimento ─────────────────
+  // objetivo: cuántas kcal debe aportar este alimento
+  calcularPorciones(alimento, kcalObjetivo, tipo) {
+    const kcalPorPorcion = alimento.kcal || 0;
+    if (kcalPorPorcion <= 0) return 1;
+    const maxPorciones = this.MAX_PORCIONES[alimento.codigo] || 3;
+    const porcsNecesarias = kcalObjetivo / kcalPorPorcion;
+    return Math.max(1, Math.min(Math.round(porcsNecesarias * 2) / 2, maxPorciones));
+  },
+
+  // ─── Crear ítem con porciones calculadas ─────────────────
+  crearItem(alimento, porciones, categoria, alGusto = false) {
+    const base    = alimento.porcion_base_g || 100;
+    const gramos  = alGusto ? base : Math.round(porciones * base);
+    const factor  = gramos / base;
+    const maxPorc = this.MAX_PORCIONES[alimento.codigo] || 3;
+
+    let _porcion = alGusto ? '1 porción al gusto' : `${gramos}g`;
+    if (!alGusto && alimento.unidad_hogar && base > 0) {
+      const uR = Math.round((gramos / base) * 2) / 2;
+      if (uR >= 0.5 && uR <= 10) {
+        const uhLimpia = alimento.unidad_hogar.replace(/^[\d.]+\s*/, '').trim();
+        _porcion = `${gramos}g (≈ ${uR} ${uhLimpia})`;
+      }
     }
-    if (items.length === 0) {
-      const fb = this.elegir(this.alimentos.filter(a => a.categoria === 'frutas'), seed + 13);
-      if (fb) items.push({...fb, _porcion: fb.unidad_hogar || '1 porción', _cat:'frutas'});
-    }
-    return items;
+
+    return {
+      ...alimento,
+      _cat:      categoria,
+      _gramos:   gramos,
+      _porcion,
+      _porciones: alGusto ? 1 : porciones,
+      _maxPorciones: maxPorc,
+      _alGusto:  alGusto,
+      // Macros ajustados a la porción actual
+      _kcal:     Math.round((alimento.kcal       || 0) * factor),
+      _prot:     Math.round((alimento.proteina_g || 0) * factor * 10) / 10,
+      _grasa:    Math.round((alimento.grasa_g    || 0) * factor * 10) / 10,
+      _carb:     Math.round((alimento.carbo_g    || 0) * factor * 10) / 10,
+    };
+  },
+
+  // ─── Escalar ítems para acercarse al kcalMeta ────────────
+  escalarItems(items, kcalMeta) {
+    if (!items || items.length === 0) return items;
+    const kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
+    if (kcalActual <= 0) return items;
+
+    const ratio = kcalMeta / kcalActual;
+    // Solo escalar si estamos más del 20% por debajo
+    if (ratio <= 1.20) return items;
+
+    return items.map(item => {
+      if (item._alGusto) return item;
+      const maxPorc    = item._maxPorciones || 3;
+      const base       = item.porcion_base_g || 100;
+      const porcsNuevas = Math.max(1, Math.min(item._porciones * ratio, maxPorc));
+      return this.crearItem(item, porcsNuevas, item._cat, false);
+    });
+  },
+
+  // ─── Helpers ─────────────────────────────────────────────
+  candidatos(codigos, p) {
+    if (!codigos || codigos.length === 0) return [];
+    let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c)).filter(Boolean);
+    return this.aplicarRestricciones(lista, p);
   },
 
   aplicarRestricciones(lista, p) {
@@ -492,283 +465,139 @@ window.dieta = {
 
   elegir(lista, seed) {
     if (!lista || lista.length === 0) return null;
-    return lista[Math.abs(seed) % lista.length];
-  },
-
-  // ─────────────────────────────────────────────────────────
-  // MOTOR DE AJUSTE AUTOMÁTICO
-  // Analiza el menú contra el objetivo y ajusta porciones
-  // ─────────────────────────────────────────────────────────
-  ajustarMenuContraObjetivo(dia) {
-    const obj = this.menuGenerado?.objetivo;
-    if (!obj) return { dia, ajustes: 0 };
-
-    const totales = dia.reduce((acc, comida) => {
-      const t = this.calcularTotalesComida(comida);
-      return { kcal: acc.kcal+t.kcal, prot: acc.prot+t.prot, grasa: acc.grasa+t.grasa, carb: acc.carb+t.carb };
-    }, { kcal:0, prot:0, grasa:0, carb:0 });
-
-    let ajustes = 0;
-
-    // Calorías excedidas → reducir grasas densas
-    if (totales.kcal > obj.kcal * 1.05) {
-      dia = this._reducirGrasa(dia);
-      ajustes++;
-    }
-    // Proteína baja → aumentar fuente proteica
-    if (totales.prot < obj.prot * 0.90) {
-      dia = this._aumentarProteina(dia);
-      ajustes++;
-    }
-    // Carbos excedidos → reducir
-    if (totales.carb > obj.carb * 1.10) {
-      dia = this._reducirCarbos(dia);
-      ajustes++;
-    }
-
-    return { dia, ajustes };
-  },
-
-  _reducirGrasa(dia) {
-    const codigos = ['A-0036','A-0037','A-0038','A-0039','A-0040','A-0041','A-0042'];
-    return dia.map(comida => ({
-      ...comida,
-      items: comida.items.map(item => {
-        if (!codigos.includes(item.codigo)) return item;
-        const base   = item.porcion_base_g || 100;
-        const gAct   = item._gramos ?? base;
-        const gNuevo = Math.max(Math.round(gAct * 0.7), 10);
-        const factor = gNuevo / base;
-        return { ...item, _gramos: gNuevo, _porcion: `${gNuevo}g`,
-          kcal: Math.round((item.kcal||0)*factor), proteina_g: Math.round((item.proteina_g||0)*factor),
-          grasa_g: Math.round((item.grasa_g||0)*factor), carbo_g: Math.round((item.carbo_g||0)*factor), _ajustado: true };
-      })
-    }));
-  },
-
-  _aumentarProteina(dia) {
-    const codigos = ['A-0001','A-0004','A-0008','A-0010','A-0014'];
-    return dia.map(comida => {
-      if (comida.tiempo.startsWith('snack')) return comida;
-      return {
-        ...comida,
-        items: comida.items.map(item => {
-          if (!codigos.includes(item.codigo)) return item;
-          const base   = item.porcion_base_g || 100;
-          const gAct   = item._gramos ?? base;
-          const maxG   = this.LIMITES_PORCION[item.codigo] || 400;
-          const gNuevo = Math.min(Math.round(gAct * 1.2), maxG);
-          const factor = gNuevo / base;
-          return { ...item, _gramos: gNuevo, _porcion: `${gNuevo}g`,
-            kcal: Math.round((item.kcal||0)*factor), proteina_g: Math.round((item.proteina_g||0)*factor),
-            grasa_g: Math.round((item.grasa_g||0)*factor), carbo_g: Math.round((item.carbo_g||0)*factor), _ajustado: true };
-        })
-      };
-    });
-  },
-
-  _reducirCarbos(dia) {
-    const codigos = ['A-0021','A-0022','A-0027','A-0031','A-0024'];
-    return dia.map(comida => ({
-      ...comida,
-      items: comida.items.map(item => {
-        if (!codigos.includes(item.codigo)) return item;
-        const base   = item.porcion_base_g || 100;
-        const gAct   = item._gramos ?? base;
-        const gNuevo = Math.max(Math.round(gAct * 0.75), 30);
-        const factor = gNuevo / base;
-        return { ...item, _gramos: gNuevo, _porcion: `${gNuevo}g`,
-          kcal: Math.round((item.kcal||0)*factor), proteina_g: Math.round((item.proteina_g||0)*factor),
-          grasa_g: Math.round((item.grasa_g||0)*factor), carbo_g: Math.round((item.carbo_g||0)*factor), _ajustado: true };
-      })
-    }));
-  },
-
-  calcPorcionCompleta(alimento, macroObj, tipo) {
-    const base      = alimento.porcion_base_g || 100;
-    const macroBase = tipo === 'prot'  ? (alimento.proteina_g||0) :
-                      tipo === 'carb'  ? (alimento.carbo_g   ||0) :
-                      tipo === 'grasa' ? (alimento.grasa_g   ||0) : 0;
-
-    // Límites máximos realistas por alimento (en gramos)
-    const MAXIMOS = {
-      'A-0003': 150,  // Huevo entero: máx 3 huevos
-      'A-0004': 165,  // Clara de huevo: máx 5 claras
-      'A-0001': 200,  // Pechuga de pollo: máx 2 pechugas
-      'A-0002': 200,  // Muslo de pollo: máx 2
-      'A-0005': 200,  // Carne de res: máx 2 porciones
-      'A-0006': 150,  // Carne molida: máx 1.5 porciones
-      'A-0008': 170,  // Atún: máx 2 latas
-      'A-0010': 200,  // Tilapia: máx 2 filetes
-      'A-0014': 200,  // Proteína en polvo: máx 2 scoops
-      'A-0021': 300,  // Arroz: máx 3 porciones
-      'A-0023': 120,  // Tortilla de maíz: máx 4 tortillas
-      'A-0024': 150,  // Pan: máx 3 porciones
-      'A-0026': 160,  // Avena: máx 2 porciones
-      'A-0028': 300,  // Papa: máx 3 porciones
-      'A-0036': 200,  // Aguacate: máx 2 porciones
-      'A-0039': 64,   // Crema de maní: máx 2 cucharadas
-      'A-0040': 42,   // Aceite de oliva: máx 1 cucharada
-    };
-    const maxG = MAXIMOS[alimento.codigo] || (base * 3);
-
-    let gramos = base;
-    if (macroBase > 0 && macroObj > 0) {
-      const gramosNecesarios = Math.round((macroObj / macroBase) * base);
-      gramos = Math.min(gramosNecesarios, maxG);
-      gramos = Math.max(gramos, base); // mínimo 1 porción
-    }
-    let _porcion = `${gramos}g`;
-    if (alimento.unidad_hogar && alimento.porcion_base_g > 0) {
-      const uR = Math.round((gramos / alimento.porcion_base_g) * 2) / 2;
-      if (uR >= 0.5 && uR <= 10) {
-        const uhLimpia = alimento.unidad_hogar.replace(/^[\d.]+\s*/, '').trim();
-        _porcion = `${gramos}g (≈ ${uR} ${uhLimpia})`;
-      }
-    }
-    return { _gramos: gramos, _porcion };
-  },
-
-  porcion(alimento, macroObj, tipo) {
-    return this.calcPorcionCompleta(alimento, macroObj, tipo)._porcion;
+    return lista[Math.abs(Math.round(seed)) % lista.length];
   },
 
   labelTiempo(t) {
-    return { desayuno:'🌅 Desayuno', almuerzo:'🍽️ Almuerzo', cena:'🌙 Cena',
-             snack1:'🍎 Snack mañana', snack2:'🌿 Snack tarde' }[t] || t;
+    return {
+      desayuno:'🌅 Desayuno', almuerzo:'🍽️ Almuerzo',
+      cena:'🌙 Cena', snack1:'🍎 Snack mañana', snack2:'🌿 Snack tarde'
+    }[t] || t;
   },
 
-  // ─────────────────────────────────────────────────────────
+  // ─── Totales de una comida ────────────────────────────────
+  totalesComida(comida) {
+    return comida.items.reduce((acc, item) => ({
+      kcal:  acc.kcal  + (item._kcal  || 0),
+      prot:  acc.prot  + (item._prot  || 0),
+      grasa: acc.grasa + (item._grasa || 0),
+      carb:  acc.carb  + (item._carb  || 0),
+    }), { kcal:0, prot:0, grasa:0, carb:0 });
+  },
+
+  totalesDia(dia) {
+    return dia.reduce((acc, comida) => {
+      const t = this.totalesComida(comida);
+      return { kcal: acc.kcal+t.kcal, prot: acc.prot+t.prot, grasa: acc.grasa+t.grasa, carb: acc.carb+t.carb };
+    }, { kcal:0, prot:0, grasa:0, carb:0 });
+  },
+
+  // ═════════════════════════════════════════════════════════
   // RENDER
-  // ─────────────────────────────────────────────────────────
+  // ═════════════════════════════════════════════════════════
+
   renderMenuEnContenedor() {
     const cont = document.getElementById('dieta-menu-container');
     if (!this.menuGenerado) return;
     const { diaBase, semana, objetivo } = this.menuGenerado;
 
-    // Sin ajuste automático — usar porciones base directamente
-    const diaAjustado = JSON.parse(JSON.stringify(diaBase));
-    const ajustes = 0;
-    this.menuGenerado._ajustes = 0;
-
     cont.innerHTML = this.vistaActiva === 'diario'
-      ? this.renderDiario(diaAjustado, objetivo, ajustes) + this.renderBotones()
+      ? this.renderDiario(diaBase, objetivo) + this.renderBotones()
       : this.renderSemanal(semana, objetivo) + this.renderBotones();
 
     document.getElementById('btn-regenerar')?.addEventListener('click', () => this.generarYRenderMenu());
   },
 
-  renderDiario(dia, objetivo, numAjustes) {
-    const totKcal  = dia.reduce((s,c) => s + this.calcularTotalesComida(c).kcal,  0);
-    const totProt  = dia.reduce((s,c) => s + this.calcularTotalesComida(c).prot,  0);
-    const totGrasa = dia.reduce((s,c) => s + this.calcularTotalesComida(c).grasa, 0);
-    const totCarb  = dia.reduce((s,c) => s + this.calcularTotalesComida(c).carb,  0);
-
-    const badgeAjuste = numAjustes > 0 ? `
-      <div class="badge-ajuste">
-        🤖 Menú ajustado automáticamente · ${numAjustes} corrección${numAjustes > 1 ? 'es' : ''}
-      </div>` : '';
+  renderDiario(dia, objetivo) {
+    const tot = this.totalesDia(dia);
+    const pct = Math.min(Math.round((tot.kcal / objetivo.kcal) * 100), 110);
+    const colorBarra = pct > 105 ? '#ef4444' : pct >= 85 ? '#10b981' : '#f59e0b';
+    const statusBarra = pct > 105 ? '⚠️ Superaste el objetivo' : pct >= 85 ? '✅ En objetivo' : '⚠️ Por debajo del objetivo';
 
     return `
-    <div class="card mb-3" style="background:var(--color-superficie-hover);" id="resumen-dia">
+    <div class="card mb-3" id="resumen-dia" style="background:var(--color-superficie-hover);">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>
           <div style="font-weight:700;">📊 Resumen del día</div>
-          <div style="font-size:0.8rem;color:var(--color-texto-secundario);" id="resumen-kcal">
-            ${dia.length} comidas · ~${window.ui.formatearNumero(totKcal)} kcal
+          <div style="font-size:0.8rem;color:var(--color-texto-secundario);" id="resumen-subtitulo">
+            ${dia.length} comidas · ~${window.ui.formatearNumero(tot.kcal)} kcal
           </div>
         </div>
         <div style="display:flex;gap:10px;font-size:0.82rem;font-weight:600;">
-          <span style="color:#ef4444;" id="resumen-prot">P: ${totProt}g</span>
-          <span style="color:#f59e0b;" id="resumen-grasa">G: ${totGrasa}g</span>
-          <span style="color:#10b981;" id="resumen-carb">C: ${totCarb}g</span>
+          <span style="color:#ef4444;" id="r-prot">P: ${Math.round(tot.prot)}g</span>
+          <span style="color:#f59e0b;" id="r-grasa">G: ${Math.round(tot.grasa)}g</span>
+          <span style="color:#10b981;" id="r-carb">C: ${Math.round(tot.carb)}g</span>
         </div>
       </div>
-      ${badgeAjuste}
-      ${this.renderBarraProgreso(totKcal, objetivo.kcal)}
+      <div style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--color-texto-secundario);margin-bottom:4px;">
+          <span id="r-status">${statusBarra}</span>
+          <span id="r-pct">${pct}% del objetivo (${window.ui.formatearNumero(objetivo.kcal)} kcal)</span>
+        </div>
+        <div style="height:8px;background:var(--color-borde);border-radius:999px;overflow:hidden;">
+          <div id="r-barra" style="height:100%;width:${Math.min(pct,100)}%;background:${colorBarra};border-radius:999px;transition:width 0.5s ease;"></div>
+        </div>
+      </div>
     </div>
+    <div id="warning-dia"></div>
     ${dia.map(c => this.renderComida(c, 0)).join('')}`;
-  },
-
-  renderBarraProgreso(actual, objetivo) {
-    const pct   = Math.min(Math.round((actual / objetivo) * 100), 110);
-    const color = pct > 105 ? '#ef4444' : pct >= 90 ? '#10b981' : '#f59e0b';
-    return `
-    <div style="margin-top:10px;">
-      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--color-texto-secundario);margin-bottom:4px;">
-        <span>Progreso calórico</span>
-        <span>${pct}% del objetivo</span>
-      </div>
-      <div style="height:6px;background:var(--color-borde);border-radius:999px;overflow:hidden;">
-        <div style="height:100%;width:${Math.min(pct,100)}%;background:${color};border-radius:999px;transition:width 0.5s ease;"></div>
-      </div>
-    </div>`;
   },
 
   renderSemanal(semana, objetivo) {
     const dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
     return `
     <div class="alert alert-info mb-3" style="font-size:0.85rem;">
-      📋 Toca cada día para ver el detalle. Los alimentos varían para mayor adherencia.
+      📋 Toca cada día para ver el detalle.
     </div>
-    ${semana.map((dia, i) => `
+    ${semana.map((dia, i) => {
+      const tot = this.totalesDia(dia);
+      return `
       <div class="card mb-2">
         <div style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
              onclick="const d=this.nextElementSibling;d.style.display=d.style.display==='block'?'none':'block'">
           <span style="font-weight:600;">📅 ${dias[i]}</span>
           <span style="font-size:0.78rem;color:var(--color-texto-secundario);">
-            ${dia.length} comidas · ${window.ui.formatearNumero(dia.reduce((s,c)=>s+(c.meta?.kcal||0),0))} kcal
+            ~${window.ui.formatearNumero(tot.kcal)} kcal
           </span>
         </div>
         <div style="display:none;margin-top:12px;">
           ${dia.map(c => this.renderComida(c, i + 1)).join('')}
         </div>
-      </div>
-    `).join('')}`;
+      </div>`;
+    }).join('')}`;
   },
 
-  renderComida(comida, diaIdx = 0) {
-    const alertProt = !comida.valido
-      ? `<div style="font-size:0.75rem;color:#ef4444;margin-top:2px;">⚠️ Sin proteína principal</div>` : '';
-    const tot = this.calcularTotalesComida(comida);
-    const itemsHtml = comida.items.length > 0
-      ? comida.items.map((item, i) => this.renderItem(item, diaIdx, comida.tiempo, i)).join('')
-      : `<div style="font-size:0.85rem;color:var(--color-texto-secundario);padding:8px 0;">Sin alimentos disponibles. Revisa restricciones.</div>`;
+  renderComida(comida, diaIdx) {
+    const tot     = this.totalesComida(comida);
+    const pct     = comida.kcalMeta > 0 ? Math.round((tot.kcal / comida.kcalMeta) * 100) : 0;
+    const overLimit = pct > 110;
+    const key     = `${diaIdx}-${comida.tiempo}`;
 
     return `
-    <div class="card mb-2" style="padding:14px;" id="comida-card-${diaIdx}-${comida.tiempo}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-        <div>
-          <span style="font-weight:700;font-size:1rem;">${comida.label}</span>
-          ${alertProt}
-        </div>
-        <div style="display:flex;gap:8px;font-size:0.78rem;font-weight:600;flex-wrap:wrap;" id="meta-${diaIdx}-${comida.tiempo}">
-          <span id="meta-kcal-${diaIdx}-${comida.tiempo}">${tot.kcal} kcal</span>
-          <span style="color:#ef4444;" id="meta-prot-${diaIdx}-${comida.tiempo}">${tot.prot}g P</span>
-          <span style="color:#f59e0b;" id="meta-grasa-${diaIdx}-${comida.tiempo}">${tot.grasa}g G</span>
-          <span style="color:#10b981;" id="meta-carb-${diaIdx}-${comida.tiempo}">${tot.carb}g C</span>
+    <div class="card mb-2" style="padding:14px;" id="comida-card-${key}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+        <span style="font-weight:700;font-size:1rem;">${comida.label}</span>
+        <div style="display:flex;gap:8px;font-size:0.78rem;font-weight:600;flex-wrap:wrap;" id="totales-${key}">
+          <span id="tc-kcal-${key}" style="${overLimit?'color:#ef4444':''}">${tot.kcal} kcal${overLimit?' ⚠️':''}</span>
+          <span style="color:#ef4444;" id="tc-prot-${key}">${Math.round(tot.prot)}g P</span>
+          <span style="color:#f59e0b;" id="tc-grasa-${key}">${Math.round(tot.grasa)}g G</span>
+          <span style="color:#10b981;" id="tc-carb-${key}">${Math.round(tot.carb)}g C</span>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;" id="items-${diaIdx}-${comida.tiempo}">
-        ${itemsHtml}
+      ${overLimit ? `<div class="warning-comida">⚠️ Esta comida supera su límite calórico (${comida.kcalMeta} kcal asignadas)</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:6px;" id="items-${key}">
+        ${comida.items.map((item, i) => this.renderItem(item, key, i, comida.tiempo)).join('')}
       </div>
-      <div style="margin-top:10px;">
-        <button class="btn-agregar-item" onclick="window.dieta.toggleAgregar('${diaIdx}-${comida.tiempo}')">
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-agregar-item" onclick="window.dieta.abrirAgregar('${key}','${comida.tiempo}',${diaIdx})">
           ＋ Agregar alimento
         </button>
-        <div id="panel-agregar-${diaIdx}-${comida.tiempo}" style="display:none;margin-top:8px;">
-          <input type="text" class="form-input" placeholder="🔍 Buscar alimento..."
-                 oninput="window.dieta.filtrarAgregar(this.value,'${diaIdx}-${comida.tiempo}')"
-                 id="search-agregar-${diaIdx}-${comida.tiempo}"
-                 style="margin-bottom:6px;font-size:0.85rem;">
-          <div id="lista-agregar-${diaIdx}-${comida.tiempo}"
-               style="max-height:220px;overflow-y:auto;border:1px solid var(--color-borde);border-radius:8px;background:var(--color-superficie);"></div>
-        </div>
       </div>
+      <div id="panel-agregar-${key}" style="display:none;margin-top:8px;"></div>
     </div>`;
   },
 
-  renderItem(item, diaIdx, tiempo, itemIdx) {
+  renderItem(item, key, itemIdx, tiempo) {
     const estilos = {
       proteinas:     { bg:'#fee2e2', border:'#991b1b', emoji:'🥩' },
       carbohidratos: { bg:'#d1fae5', border:'#065f46', emoji:'🍞' },
@@ -776,359 +605,358 @@ window.dieta = {
       frutas:        { bg:'#ede9fe', border:'#5b21b6', emoji:'🍎' },
       vegetales:     { bg:'#dcfce7', border:'#166534', emoji:'🥬' },
       combinados:    { bg:'#e0f2fe', border:'#0c4a6e', emoji:'🫓' },
-      bebidas:       { bg:'#f0fdf4', border:'#14532d', emoji:'🥤' }
     };
     const e   = estilos[item._cat] || { bg:'#f1f5f9', border:'#475569', emoji:'🍽️' };
-    const uid = `${diaIdx}-${tiempo}-${itemIdx}`;
+    const uid = `${key}-${itemIdx}`;
 
-    // Badge ajuste automático
-    const badgeAjuste = item._ajustado
-      ? `<span style="font-size:0.65rem;background:#eff6ff;color:#3b82f6;padding:1px 5px;border-radius:4px;font-weight:600;margin-left:4px;">⚡ ajustado</span>`
-      : '';
-
-    // Botón eliminar (solo ítems manuales)
-    const btnEliminar = item._manual
-      ? `<button onclick="event.stopPropagation();window.dieta.eliminarItem('${diaIdx}','${tiempo}',${itemIdx})"
-                 style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:#ef4444;padding:2px 4px;" title="Eliminar">✕</button>`
-      : '';
-
-    // ── BOTÓN DE RECETA ────────────────────────────────────
-    // Aparece solo si el alimento tiene código real y porción concreta
-    const tieneReceta = item.codigo && !item._porcion?.includes('al gusto');
     const nombreSeguro = (item.nombre || '').replace(/'/g, "\\'");
-    const btnReceta = tieneReceta ? `
-      <button
-        onclick="event.stopPropagation();window.recetas?.mostrarPanelRecetas('${item.codigo}','${nombreSeguro}','${uid}')"
+    const tieneReceta  = item.codigo && !item._alGusto;
+    const btnReceta    = tieneReceta ? `
+      <button onclick="event.stopPropagation();window.recetas?.mostrarPanelRecetas('${item.codigo}','${nombreSeguro}','${uid}')"
         style="background:none;border:1px solid #10b981;border-radius:5px;cursor:pointer;
                font-size:0.72rem;color:#10b981;padding:2px 7px;font-weight:600;
-               font-family:inherit;line-height:1.4;white-space:nowrap;"
-        title="Ver cómo prepararlo">
-        👨‍🍳 Receta
-      </button>` : '';
+               font-family:inherit;white-space:nowrap;">👨‍🍳 Receta</button>` : '';
+
+    const btnEliminar = item._manual ? `
+      <button onclick="event.stopPropagation();window.dieta.eliminarItem('${key}',${itemIdx},${tiempo.startsWith('snack')?1:0})"
+        style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:#ef4444;padding:2px 4px;">✕</button>` : '';
+
+    // Botones +/- solo si no es "al gusto"
+    const btnPlusMinus = !item._alGusto ? `
+      <div style="display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation()">
+        <button class="btn-porcion" onclick="window.dieta.ajustarPorcion('${key}',${itemIdx},-1)" title="Reducir porción">−</button>
+        <span style="font-size:0.75rem;min-width:20px;text-align:center;font-weight:600;" id="porcs-${uid}">${item._porciones}</span>
+        <button class="btn-porcion" onclick="window.dieta.ajustarPorcion('${key}',${itemIdx},+1)" title="Aumentar porción">＋</button>
+      </div>` : '';
 
     return `
-    <div class="item-swap-wrap" id="wrap-${uid}">
+    <div class="item-wrap" id="item-${uid}">
       <div style="padding:8px 12px;border-radius:8px;border-left:3px solid ${e.border};
-                  background:${e.bg}40;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-                  cursor:pointer;"
-           onclick="window.dieta.toggleSwap('${uid}','${item._cat}','${tiempo}',${diaIdx},${itemIdx})">
+                  background:${e.bg}40;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"
+           id="item-row-${uid}">
         <span style="font-size:1.1rem;">${e.emoji}</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:0.9rem;color:var(--color-texto-principal);display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
-            ${item.nombre}${badgeAjuste}
-          </div>
-          <div style="font-size:0.78rem;color:var(--color-texto-secundario);margin-top:1px;">${item._porcion}</div>
+          <div style="font-weight:600;font-size:0.88rem;color:var(--color-texto-principal);">${item.nombre}</div>
+          <div style="font-size:0.76rem;color:var(--color-texto-secundario);" id="porcion-txt-${uid}">${item._porcion}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;flex-wrap:wrap;">
+          ${btnPlusMinus}
           ${btnReceta}
-          <div style="font-size:0.78rem;color:${e.border};font-weight:600;">${item.kcal} kcal</div>
-          <span style="font-size:0.75rem;color:var(--color-texto-claro);">🔄</span>
+          <div style="font-size:0.78rem;color:${e.border};font-weight:600;white-space:nowrap;" id="kcal-txt-${uid}">${item._kcal} kcal</div>
+          <button onclick="event.stopPropagation();window.dieta.abrirSustituir('${key}',${itemIdx},'${item._cat}','${tiempo}')"
+            style="background:none;border:none;cursor:pointer;font-size:0.75rem;color:var(--color-texto-claro);padding:2px;"
+            title="Sustituir">🔄</button>
           ${btnEliminar}
         </div>
       </div>
-      <div id="swap-${uid}" style="display:none;"></div>
+      <div id="sustituir-${uid}" style="display:none;"></div>
+      <div id="receta-panel-${uid}"></div>
     </div>`;
   },
 
-  // ── PANEL DE SUSTITUCIONES ─────────────────────────────────
-  toggleSwap(uid, cat, tiempo, diaIdx, itemIdx) {
-    const panel = document.getElementById(`swap-${uid}`);
+  // ═════════════════════════════════════════════════════════
+  // AJUSTAR PORCIONES (+/-)
+  // ═════════════════════════════════════════════════════════
+  ajustarPorcion(key, itemIdx, delta) {
+    const { diaIdx, tiempo, comida } = this.obtenerComida(key);
+    if (!comida) return;
+    const item = comida.items[itemIdx];
+    if (!item || item._alGusto) return;
+
+    const maxPorc  = item._maxPorciones || 3;
+    const nuevaPorc = Math.max(0.5, Math.min((item._porciones || 1) + delta * 0.5, maxPorc));
+
+    // Actualizar el ítem
+    const actualizado = this.crearItem(item, nuevaPorc, item._cat, false);
+    comida.items[itemIdx] = actualizado;
+
+    // Re-render del ítem
+    const uid = `${key}-${itemIdx}`;
+    const porcionEl = document.getElementById(`porcion-txt-${uid}`);
+    const kcalEl    = document.getElementById(`kcal-txt-${uid}`);
+    const porcsEl   = document.getElementById(`porcs-${uid}`);
+    if (porcionEl) porcionEl.textContent = actualizado._porcion;
+    if (kcalEl)    kcalEl.textContent    = `${actualizado._kcal} kcal`;
+    if (porcsEl)   porcsEl.textContent   = actualizado._porciones;
+
+    this.actualizarTotalesUI(key, comida, diaIdx);
+  },
+
+  // ═════════════════════════════════════════════════════════
+  // SUSTITUIR ALIMENTO
+  // ═════════════════════════════════════════════════════════
+  abrirSustituir(key, itemIdx, cat, tiempo) {
+    // Cerrar paneles previos
+    document.querySelectorAll('[id^="sustituir-"]').forEach(p => p.style.display = 'none');
+
+    const uid    = `${key}-${itemIdx}`;
+    const panel  = document.getElementById(`sustituir-${uid}`);
     if (!panel) return;
-    if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
-    document.querySelectorAll('[id^="swap-"]').forEach(p => { if (p.id !== `swap-${uid}`) p.style.display = 'none'; });
 
-    const dia    = diaIdx === 0 ? this.menuGenerado.diaBase : this.menuGenerado.semana[diaIdx - 1];
-    const comida = dia?.find(c => c.tiempo === tiempo);
+    // Obtener alimentos del mismo tiempo y categoría
+    const reglaTiempo = this.ALIMENTOS_POR_TIEMPO[tiempo];
+    let codigos = [];
+    if (reglaTiempo && reglaTiempo[cat]) {
+      codigos = reglaTiempo[cat] === 'todas'
+        ? this.alimentos.filter(a => a.categoria === cat).map(a => a.codigo)
+        : reglaTiempo[cat];
+    }
+
+    const { comida } = this.obtenerComida(key);
     const actual = comida?.items[itemIdx];
-    const alts   = this.obtenerAlternativas(cat, tiempo, actual?.codigo);
+    let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c))
+      .filter(Boolean)
+      .filter(a => a.codigo !== actual?.codigo);
+    lista = this.aplicarRestricciones(lista, this.preferencias);
 
-    if (alts.length === 0) {
-      panel.innerHTML = `<div style="padding:10px 12px;font-size:0.82rem;color:var(--color-texto-secundario);">No hay más opciones para esta categoría.</div>`;
+    if (lista.length === 0) {
+      panel.innerHTML = `<div style="padding:8px 12px;font-size:0.82rem;color:var(--color-texto-secundario);background:var(--color-superficie);border:1px solid var(--color-borde);border-top:none;border-radius:0 0 8px 8px;">No hay alternativas disponibles para este tiempo.</div>`;
     } else {
-      const colores = { proteinas:'#991b1b', carbohidratos:'#065f46', grasas:'#92400e', frutas:'#5b21b6', vegetales:'#166534', combinados:'#0c4a6e' };
+      const colores = { proteinas:'#991b1b', carbohidratos:'#065f46', grasas:'#92400e', frutas:'#5b21b6', vegetales:'#166534' };
       const color   = colores[cat] || '#475569';
       panel.innerHTML = `
         <div style="background:var(--color-superficie);border:1px solid var(--color-borde);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;">
-          <div style="padding:7px 12px;background:var(--color-superficie-hover);font-size:0.74rem;font-weight:700;color:var(--color-texto-secundario);text-transform:uppercase;letter-spacing:.04em;">
-            🔄 Cambiar por…
+          <div style="padding:6px 12px;background:var(--color-superficie-hover);font-size:0.73rem;font-weight:700;color:var(--color-texto-secundario);text-transform:uppercase;">
+            🔄 Sustituir por (mismo tiempo de comida)
           </div>
-          ${alts.map(alt => `
-          <div onclick="window.dieta.aplicarSwap('${uid}','${alt.codigo}','${cat}','${tiempo}',${diaIdx},${itemIdx})"
-               style="padding:9px 12px;border-bottom:1px solid var(--color-borde);display:flex;align-items:center;
-                      justify-content:space-between;gap:8px;cursor:pointer;">
-            <div style="flex:1;">
-              <div style="font-weight:600;font-size:0.88rem;color:var(--color-texto-principal);">${alt.nombre}</div>
-              <div style="font-size:0.75rem;color:var(--color-texto-secundario);">${alt.unidad_hogar || alt.porcion_base_g+'g'}</div>
+          ${lista.slice(0,6).map(alt => `
+          <div onclick="window.dieta.aplicarSustitucion('${key}',${itemIdx},'${alt.codigo}','${cat}')"
+               style="padding:9px 12px;border-bottom:1px solid var(--color-borde);display:flex;
+                      justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
+            <div>
+              <div style="font-weight:600;font-size:0.87rem;">${alt.nombre}</div>
+              <div style="font-size:0.73rem;color:var(--color-texto-secundario);">${alt.unidad_hogar || alt.porcion_base_g+'g'}</div>
             </div>
-            <div style="font-size:0.78rem;color:${color};font-weight:600;white-space:nowrap;">${alt.kcal} kcal</div>
+            <span style="font-size:0.78rem;color:${color};font-weight:600;">${alt.kcal} kcal</span>
           </div>`).join('')}
         </div>`;
     }
     panel.style.display = 'block';
   },
 
-  obtenerAlternativas(cat, tiempo, codigoActual) {
-    const reglas = this.MENU_RULES[tiempo];
-    let codigos  = [];
-    if (tiempo?.startsWith('snack')) {
-      codigos = this.alimentos.filter(a => a.categoria === cat && a.etiquetas?.includes('portable')).map(a => a.codigo);
-    } else if (reglas) {
-      const listaCat = reglas[cat] || [];
-      codigos = listaCat.length > 0 ? listaCat : this.alimentos.filter(a => a.categoria === cat).map(a => a.codigo);
-    } else {
-      codigos = this.alimentos.filter(a => a.categoria === cat).map(a => a.codigo);
-    }
-    let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c)).filter(Boolean).filter(a => a.codigo !== codigoActual);
-    lista = this.aplicarRestricciones(lista, this.preferencias);
-    return lista.slice(0, 6);
-  },
-
-  aplicarSwap(uid, codigoNuevo, cat, tiempo, diaIdx, itemIdx) {
+  aplicarSustitucion(key, itemIdx, codigoNuevo, cat) {
+    const { comida } = this.obtenerComida(key);
+    if (!comida) return;
     const nuevo = this.alimentos.find(a => a.codigo === codigoNuevo);
     if (!nuevo) return;
-    const dia    = diaIdx === 0 ? this.menuGenerado.diaBase : this.menuGenerado.semana[diaIdx - 1];
-    const comida = dia?.find(c => c.tiempo === tiempo);
-    if (!comida) return;
+
     const itemAnterior = comida.items[itemIdx];
-    const tipoMacro    = cat === 'proteinas' ? 'prot' : cat === 'carbohidratos' ? 'carb' : cat === 'grasas' ? 'grasa' : null;
-    const macroObj     = tipoMacro ? (itemAnterior?._macroObj || comida.meta[tipoMacro === 'prot' ? 'prot' : tipoMacro === 'carb' ? 'carb' : 'grasa']) : null;
-    const porcion      = tipoMacro && macroObj ? this.porcion(nuevo, macroObj, tipoMacro) : (nuevo.unidad_hogar || `${nuevo.porcion_base_g}g`);
-    comida.items[itemIdx] = { ...nuevo, _porcion: porcion, _cat: cat, _macroObj: macroObj };
+    const porciones    = itemAnterior._porciones || 1;
+    comida.items[itemIdx] = this.crearItem(nuevo, porciones, cat, false);
 
-    const contItems = document.getElementById(`items-${diaIdx}-${tiempo}`);
-    if (contItems) contItems.innerHTML = comida.items.map((item, i) => this.renderItem(item, diaIdx, tiempo, i)).join('');
-    this.actualizarTotales(diaIdx, tiempo, comida);
+    // Re-render items de la comida
+    this.rerenderItems(key, comida);
+    this.actualizarTotalesUI(key, comida, this.obtenerComida(key).diaIdx);
+
+    // Cerrar panel
+    const uid = `${key}-${itemIdx}`;
+    const panel = document.getElementById(`sustituir-${uid}`);
+    if (panel) panel.style.display = 'none';
   },
 
-  calcularTotalesComida(comida) {
-    let kcal = 0, prot = 0, grasa = 0, carb = 0;
-    comida.items.forEach(item => {
-      // Datos en BD son por porcion_base_g — factor solo si _gramos fue ajustado
-      const g      = item._gramos ?? (item.porcion_base_g || 100);
-      const base   = item.porcion_base_g || 100;
-      const factor = base > 0 ? (g / base) : 1;
-      kcal  += (item.kcal       ||0) * factor;
-      prot  += (item.proteina_g ||0) * factor;
-      grasa += (item.grasa_g    ||0) * factor;
-      carb  += (item.carbo_g    ||0) * factor;
+  // ═════════════════════════════════════════════════════════
+  // AGREGAR ALIMENTO
+  // ═════════════════════════════════════════════════════════
+  abrirAgregar(key, tiempo, diaIdx) {
+    // Cerrar otros paneles
+    document.querySelectorAll('[id^="panel-agregar-"]').forEach(p => {
+      if (p.id !== `panel-agregar-${key}`) p.style.display = 'none';
     });
-    return { kcal: Math.round(kcal), prot: Math.round(prot), grasa: Math.round(grasa), carb: Math.round(carb) };
-  },
-
-  _gramosDeItem(item) {
-    const m = (item._porcion || '').match(/^(\d+(?:\.\d+)?)/);
-    return m ? parseFloat(m[1]) : (item.porcion_base_g || 100);
-  },
-
-  // ── AGREGAR ALIMENTO ─────────────────────────────────────
-  toggleAgregar(key) {
     const panel = document.getElementById(`panel-agregar-${key}`);
     if (!panel) return;
-    const abierto = panel.style.display === 'block';
-    document.querySelectorAll('[id^="panel-agregar-"]').forEach(p => p.style.display = 'none');
-    if (!abierto) {
-      panel.style.display = 'block';
-      const input = document.getElementById(`search-agregar-${key}`);
-      if (input) { input.value = ''; input.focus(); }
-      this.filtrarAgregar('', key);
-    }
+    if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
+
+    panel.style.display = 'block';
+    panel.innerHTML = `
+      <div style="background:var(--color-superficie);border:1px solid var(--color-borde);border-radius:8px;overflow:hidden;">
+        <div style="padding:8px 12px;background:var(--color-superficie-hover);font-size:0.73rem;font-weight:700;color:var(--color-texto-secundario);text-transform:uppercase;">
+          ＋ Agregar alimento (opciones de ${this.labelTiempo(tiempo)})
+        </div>
+        <div style="padding:8px 12px;">
+          <input type="text" class="form-input" placeholder="🔍 Buscar..."
+                 style="margin-bottom:6px;font-size:0.85rem;"
+                 oninput="window.dieta.filtrarAgregar(this.value,'${key}','${tiempo}')">
+        </div>
+        <div id="lista-agregar-${key}" style="max-height:220px;overflow-y:auto;"></div>
+      </div>`;
+
+    this.filtrarAgregar('', key, tiempo);
   },
 
-  filtrarAgregar(termino, key) {
+  filtrarAgregar(termino, key, tiempo) {
     const lista = document.getElementById(`lista-agregar-${key}`);
     if (!lista) return;
-    const t = termino.toLowerCase().trim();
-    let candidatos = this.aplicarRestricciones([...this.alimentos], this.preferencias);
-    if (t) candidatos = candidatos.filter(a => a.nombre.toLowerCase().includes(t));
-    candidatos = candidatos.slice(0, 30);
 
-    if (candidatos.length === 0) {
-      lista.innerHTML = `<div style="padding:12px;text-align:center;">
-        <div style="font-size:0.82rem;color:var(--color-texto-secundario);margin-bottom:8px;">Sin resultados para "<strong>${t}</strong>"</div>
-        <button class="btn btn-outline" style="font-size:0.82rem;padding:6px 14px;"
-                onclick="window.dieta.abrirFormNuevoAlimento('${t}')">
-          ➕ Agregar al catálogo
-        </button>
-      </div>`;
+    // Solo alimentos permitidos para ese tiempo
+    const reglaTiempo = this.ALIMENTOS_POR_TIEMPO[tiempo] || {};
+    let permitidos = [];
+    Object.entries(reglaTiempo).forEach(([cat, codigos]) => {
+      if (codigos === 'todas') {
+        this.alimentos.filter(a => a.categoria === cat).forEach(a => {
+          if (!permitidos.find(p => p.codigo === a.codigo)) permitidos.push({ ...a, _cat: cat });
+        });
+      } else if (Array.isArray(codigos)) {
+        codigos.forEach(c => {
+          const a = this.alimentos.find(x => x.codigo === c);
+          if (a && !permitidos.find(p => p.codigo === a.codigo)) permitidos.push({ ...a, _cat: cat });
+        });
+      }
+    });
+
+    permitidos = this.aplicarRestricciones(permitidos, this.preferencias);
+    if (termino) permitidos = permitidos.filter(a => a.nombre.toLowerCase().includes(termino.toLowerCase()));
+
+    if (permitidos.length === 0) {
+      lista.innerHTML = `<div style="padding:12px;font-size:0.82rem;color:var(--color-texto-secundario);text-align:center;">Sin resultados para "${termino}"</div>`;
       return;
     }
-    const colores = { proteinas:'#991b1b', carbohidratos:'#065f46', grasas:'#92400e', frutas:'#5b21b6', vegetales:'#166534', combinados:'#0c4a6e', bebidas:'#14532d' };
-    lista.innerHTML = candidatos.map(a => `
-      <div onclick="window.dieta.mostrarCantidad('${key}','${a.codigo}')"
-           style="padding:9px 12px;border-bottom:1px solid var(--color-borde);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <div style="flex:1;">
-          <div style="font-weight:600;font-size:0.88rem;color:var(--color-texto-principal);">${a.nombre}</div>
-          <div style="font-size:0.74rem;color:var(--color-texto-secundario);">${a.porcion_descripcion || a.porcion_base_g+'g'} · ${a.proteina_g}g P · ${a.grasa_g}g G · ${a.carbo_g}g C</div>
+
+    const colores = { proteinas:'#991b1b', carbohidratos:'#065f46', grasas:'#92400e', frutas:'#5b21b6', vegetales:'#166534' };
+    lista.innerHTML = permitidos.slice(0,20).map(a => `
+      <div onclick="window.dieta.seleccionarAgregar('${key}','${a.codigo}','${a._cat}','${tiempo}')"
+           style="padding:9px 12px;border-bottom:1px solid var(--color-borde);display:flex;
+                  justify-content:space-between;align-items:center;gap:8px;cursor:pointer;">
+        <div>
+          <div style="font-weight:600;font-size:0.87rem;">${a.nombre}</div>
+          <div style="font-size:0.73rem;color:var(--color-texto-secundario);">${a.unidad_hogar || a.porcion_base_g+'g'} · ${a.proteina_g}g P · ${a.grasa_g}g G · ${a.carbo_g}g C</div>
         </div>
-        <span style="font-size:0.78rem;color:${colores[a.categoria]||'#475569'};font-weight:600;white-space:nowrap;">${a.kcal} kcal</span>
+        <span style="font-size:0.78rem;color:${colores[a._cat]||'#475569'};font-weight:600;">${a.kcal} kcal</span>
       </div>`).join('');
   },
 
-  mostrarCantidad(key, codigo) {
-    const a    = this.alimentos.find(x => x.codigo === codigo);
-    if (!a) return;
+  seleccionarAgregar(key, codigo, cat, tiempo) {
     const lista = document.getElementById(`lista-agregar-${key}`);
     if (!lista) return;
-    lista.innerHTML = `
-    <div style="padding:12px;">
-      <div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">${a.nombre}</div>
-      <div style="font-size:0.78rem;color:var(--color-texto-secundario);margin-bottom:10px;">
-        ${a.kcal} kcal / ${a.porcion_base_g}g · ${a.proteina_g}g P · ${a.grasa_g}g G · ${a.carbo_g}g C
-      </div>
-      <label style="font-size:0.78rem;font-weight:600;color:var(--color-texto-secundario);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;">
-        Cantidad (gramos)
-      </label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="number" id="cantidad-agregar-${key}" value="${a.porcion_base_g||100}" min="10" max="1000" step="10"
-               class="form-input" style="width:100px;font-size:0.9rem;text-align:center;">
-        <button class="btn btn-primary" style="padding:7px 16px;font-size:0.85rem;"
-                onclick="window.dieta.confirmarAgregar('${key}','${codigo}')">✓ Agregar</button>
-        <button class="btn btn-outline" style="padding:7px 12px;font-size:0.85rem;"
-                onclick="window.dieta.filtrarAgregar('','${key}')">← Volver</button>
-      </div>
-    </div>`;
-  },
-
-  confirmarAgregar(key, codigo) {
     const a = this.alimentos.find(x => x.codigo === codigo);
     if (!a) return;
-    const gramos  = parseFloat(document.getElementById(`cantidad-agregar-${key}`)?.value) || a.porcion_base_g;
-    const factor  = gramos / (a.porcion_base_g || 100);
-    const sepIdx  = key.indexOf('-');
-    const diaIdx  = parseInt(key.substring(0, sepIdx));
-    const tiempo  = key.substring(sepIdx + 1);
-    const dia     = diaIdx === 0 ? this.menuGenerado.diaBase : this.menuGenerado.semana[diaIdx - 1];
-    const comida  = dia?.find(c => c.tiempo === tiempo);
+
+    lista.innerHTML = `
+      <div style="padding:12px;">
+        <div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">${a.nombre}</div>
+        <div style="font-size:0.78rem;color:var(--color-texto-secundario);margin-bottom:10px;">
+          ${a.kcal} kcal / porción · ${a.proteina_g}g P · ${a.grasa_g}g G · ${a.carbo_g}g C
+        </div>
+        <label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:4px;">Porciones</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" id="cant-agregar-${key}" value="1" min="0.5" max="${this.MAX_PORCIONES[codigo]||3}" step="0.5"
+                 class="form-input" style="width:80px;text-align:center;">
+          <span style="font-size:0.8rem;color:var(--color-texto-secundario);">× ${a.kcal} kcal</span>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:0.85rem;"
+                  onclick="window.dieta.confirmarAgregar('${key}','${codigo}','${cat}')">✓ Agregar</button>
+          <button class="btn btn-outline" style="padding:6px 10px;font-size:0.85rem;"
+                  onclick="window.dieta.filtrarAgregar('','${key}','${tiempo}')">← Volver</button>
+        </div>
+      </div>`;
+  },
+
+  confirmarAgregar(key, codigo, cat) {
+    const a = this.alimentos.find(x => x.codigo === codigo);
+    if (!a) return;
+    const input    = document.getElementById(`cant-agregar-${key}`);
+    const porciones = parseFloat(input?.value) || 1;
+    const { diaIdx, comida } = this.obtenerComida(key);
     if (!comida) return;
 
-    let porcion = `${gramos}g`;
-    if (a.unidad_hogar && a.porcion_base_g) {
-      const uR = Math.round((gramos / a.porcion_base_g) * 2) / 2;
-      if (uR >= 0.5 && uR <= 10) porcion = `${uR} ${a.unidad_hogar}`;
-    }
+    const nuevo = this.crearItem(a, porciones, cat, false);
+    nuevo._manual = true;
+    comida.items.push(nuevo);
 
-    comida.items.push({
-      ...a,
-      kcal: Math.round(a.kcal*factor), proteina_g: Math.round(a.proteina_g*factor),
-      grasa_g: Math.round(a.grasa_g*factor), carbo_g: Math.round(a.carbo_g*factor),
-      _porcion: porcion, _cat: a.categoria, _manual: true, _gramos: gramos
-    });
+    this.rerenderItems(key, comida);
+    this.actualizarTotalesUI(key, comida, diaIdx);
 
-    const contItems = document.getElementById(`items-${key}`);
-    if (contItems) contItems.innerHTML = comida.items.map((item, i) => this.renderItem(item, diaIdx, tiempo, i)).join('');
-    this.actualizarTotales(diaIdx, tiempo, comida);
     const panel = document.getElementById(`panel-agregar-${key}`);
     if (panel) panel.style.display = 'none';
   },
 
-  eliminarItem(diaIdx, tiempo, itemIdx) {
-    diaIdx  = parseInt(diaIdx);
-    itemIdx = parseInt(itemIdx);
-    const dia    = diaIdx === 0 ? this.menuGenerado.diaBase : this.menuGenerado.semana[diaIdx - 1];
-    const comida = dia?.find(c => c.tiempo === tiempo);
+  // ─── Eliminar ítem ────────────────────────────────────────
+  eliminarItem(key, itemIdx) {
+    const { diaIdx, comida } = this.obtenerComida(key);
     if (!comida) return;
     comida.items.splice(itemIdx, 1);
-    const contItems = document.getElementById(`items-${diaIdx}-${tiempo}`);
-    if (contItems) contItems.innerHTML = comida.items.map((item, i) => this.renderItem(item, diaIdx, tiempo, i)).join('');
-    this.actualizarTotales(diaIdx, tiempo, comida);
+    this.rerenderItems(key, comida);
+    this.actualizarTotalesUI(key, comida, diaIdx);
   },
 
-  actualizarTotales(diaIdx, tiempo, comida) {
-    const tot = this.calcularTotalesComida(comida);
-    const s = (id) => document.getElementById(id);
-    if (s(`meta-kcal-${diaIdx}-${tiempo}`))  s(`meta-kcal-${diaIdx}-${tiempo}`).textContent  = `${tot.kcal} kcal`;
-    if (s(`meta-prot-${diaIdx}-${tiempo}`))  s(`meta-prot-${diaIdx}-${tiempo}`).textContent  = `${tot.prot}g P`;
-    if (s(`meta-grasa-${diaIdx}-${tiempo}`)) s(`meta-grasa-${diaIdx}-${tiempo}`).textContent = `${tot.grasa}g G`;
-    if (s(`meta-carb-${diaIdx}-${tiempo}`))  s(`meta-carb-${diaIdx}-${tiempo}`).textContent  = `${tot.carb}g C`;
-
-    if (diaIdx === 0) {
-      const totDia = this.menuGenerado.diaBase.reduce((acc, c) => {
-        const t = this.calcularTotalesComida(c);
-        return { kcal:acc.kcal+t.kcal, prot:acc.prot+t.prot, grasa:acc.grasa+t.grasa, carb:acc.carb+t.carb };
-      }, { kcal:0, prot:0, grasa:0, carb:0 });
-      if (s('resumen-kcal'))  s('resumen-kcal').textContent  = `${this.menuGenerado.diaBase.length} comidas · ~${window.ui.formatearNumero(totDia.kcal)} kcal`;
-      if (s('resumen-prot'))  s('resumen-prot').textContent  = `P: ${totDia.prot}g`;
-      if (s('resumen-grasa')) s('resumen-grasa').textContent = `G: ${totDia.grasa}g`;
-      if (s('resumen-carb'))  s('resumen-carb').textContent  = `C: ${totDia.carb}g`;
+  // ─── Helpers de render ───────────────────────────────────
+  rerenderItems(key, comida) {
+    const cont = document.getElementById(`items-${key}`);
+    if (cont) {
+      const tiempo = comida.tiempo;
+      cont.innerHTML = comida.items.map((item, i) => this.renderItem(item, key, i, tiempo)).join('');
     }
   },
 
-  // ── FORM NUEVO ALIMENTO ──────────────────────────────────
-  abrirFormNuevoAlimento(nombreInicial = '') {
-    document.querySelectorAll('[id^="panel-agregar-"]').forEach(p => p.style.display = 'none');
-    document.getElementById('modal-nuevo-alimento')?.remove();
-    const cats = { proteinas:'🥩 Proteínas', carbohidratos:'🍞 Carbohidratos', grasas:'🥑 Grasas', vegetales:'🥬 Vegetales', frutas:'🍎 Frutas', combinados:'🫓 Combinados', bebidas:'🥤 Bebidas' };
-    document.body.insertAdjacentHTML('beforeend', `
-    <div id="modal-nuevo-alimento" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
-      <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:480px;margin:auto;margin-top:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <h3 style="font-weight:700;font-size:1.1rem;margin:0;">➕ Nuevo alimento</h3>
-          <button onclick="document.getElementById('modal-nuevo-alimento').remove()"
-                  style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#6b7280;">✕</button>
-        </div>
-        <div style="font-size:0.8rem;color:#065f46;background:#d1fae5;border-radius:8px;padding:8px 12px;margin-bottom:14px;">
-          📋 Ingresa los valores <strong>por 100g</strong> del alimento.
-        </div>
-        <div class="form-group">
-          <label class="form-label">Nombre *</label>
-          <input type="text" id="na-nombre" class="form-input" value="${nombreInicial.replace(/'/g,"\\'")}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Categoría *</label>
-          <select id="na-categoria" class="form-input">
-            ${Object.entries(cats).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
-          </select>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div class="form-group"><label class="form-label">Calorías *</label><input type="number" id="na-kcal" class="form-input" placeholder="165" min="0"></div>
-          <div class="form-group"><label class="form-label">Proteína g *</label><input type="number" id="na-prot" class="form-input" placeholder="31" min="0" step="0.1"></div>
-          <div class="form-group"><label class="form-label">Grasa g *</label><input type="number" id="na-grasa" class="form-input" placeholder="3.6" min="0" step="0.1"></div>
-          <div class="form-group"><label class="form-label">Carbos g *</label><input type="number" id="na-carb" class="form-input" placeholder="0" min="0" step="0.1"></div>
-          <div class="form-group"><label class="form-label">Porción base (g)</label><input type="number" id="na-porcion" class="form-input" value="100" min="1"></div>
-          <div class="form-group"><label class="form-label">Unidad hogar</label><input type="text" id="na-unidad" class="form-input" placeholder="1 filete"></div>
-        </div>
-        <div id="na-error" style="display:none;background:#fee2e2;color:#991b1b;border-radius:8px;padding:8px 12px;font-size:0.82rem;margin-bottom:10px;"></div>
-        <button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="window.dieta.guardarNuevoAlimento()">
-          💾 Guardar en catálogo
-        </button>
-      </div>
-    </div>`);
+  actualizarTotalesUI(key, comida, diaIdx) {
+    const tot = this.totalesComida(comida);
+    const pct = comida.kcalMeta > 0 ? Math.round((tot.kcal / comida.kcalMeta) * 100) : 0;
+    const overLimit = pct > 110;
+
+    // Actualizar totales de la comida
+    const el = (id) => document.getElementById(id);
+    if (el(`tc-kcal-${key}`)) {
+      el(`tc-kcal-${key}`).textContent = `${tot.kcal} kcal${overLimit?' ⚠️':''}`;
+      el(`tc-kcal-${key}`).style.color = overLimit ? '#ef4444' : '';
+    }
+    if (el(`tc-prot-${key}`))  el(`tc-prot-${key}`).textContent  = `${Math.round(tot.prot)}g P`;
+    if (el(`tc-grasa-${key}`)) el(`tc-grasa-${key}`).textContent = `${Math.round(tot.grasa)}g G`;
+    if (el(`tc-carb-${key}`))  el(`tc-carb-${key}`).textContent  = `${Math.round(tot.carb)}g C`;
+
+    // Warning de la comida
+    const warnEl = document.querySelector(`#comida-card-${key} .warning-comida`);
+    if (overLimit && !warnEl) {
+      const card = document.getElementById(`comida-card-${key}`);
+      const totDiv = document.getElementById(`totales-${key}`);
+      if (totDiv) totDiv.insertAdjacentHTML('afterend', `<div class="warning-comida">⚠️ Esta comida supera su límite calórico (${comida.kcalMeta} kcal asignadas)</div>`);
+    } else if (!overLimit && warnEl) {
+      warnEl.remove();
+    }
+
+    // Actualizar resumen del día (solo vista diaria)
+    if (diaIdx === 0) this.actualizarResumenDia();
   },
 
-  async guardarNuevoAlimento() {
-    const g      = id => document.getElementById(id)?.value.trim();
-    const nombre = g('na-nombre');
-    const kcal   = parseFloat(g('na-kcal'));
-    const errEl  = document.getElementById('na-error');
-    if (!nombre)              { errEl.textContent='El nombre es obligatorio.'; errEl.style.display='block'; return; }
-    if (isNaN(kcal)||kcal<0) { errEl.textContent='Ingresa las calorías.';    errEl.style.display='block'; return; }
-    errEl.style.display = 'none';
-    const btn = document.querySelector('#modal-nuevo-alimento .btn-primary');
-    btn.disabled = true; btn.textContent = 'Guardando...';
-    try {
-      const { data, error } = await window.db.from('alimentos').insert({
-        codigo: `U-${Date.now().toString().slice(-6)}`,
-        nombre,
-        categoria:         g('na-categoria'),
-        porcion_base_g:    parseFloat(g('na-porcion')) || 100,
-        kcal,
-        proteina_g:        parseFloat(g('na-prot'))  || 0,
-        grasa_g:           parseFloat(g('na-grasa')) || 0,
-        carbo_g:           parseFloat(g('na-carb'))  || 0,
-        unidad_hogar:      g('na-unidad') || null,
-        activo:            true
-      }).select().single();
-      if (error) throw error;
-      this.alimentos.push(data);
-      window.ui.mostrarAlerta('✅ Alimento guardado en el catálogo', 'success');
-      document.getElementById('modal-nuevo-alimento').remove();
-    } catch (err) {
-      errEl.textContent = 'Error: ' + err.message;
-      errEl.style.display = 'block';
-      btn.disabled = false; btn.textContent = '💾 Guardar en catálogo';
+  actualizarResumenDia() {
+    const dia = this.menuGenerado?.diaBase;
+    if (!dia) return;
+    const objetivo = this.menuGenerado.objetivo;
+    const tot = this.totalesDia(dia);
+    const pct = Math.min(Math.round((tot.kcal / objetivo.kcal) * 100), 110);
+    const colorBarra = pct > 105 ? '#ef4444' : pct >= 85 ? '#10b981' : '#f59e0b';
+    const statusBarra = pct > 105 ? '⚠️ Superaste el objetivo calórico' : pct >= 85 ? '✅ En objetivo' : '⚠️ Por debajo del objetivo';
+
+    const el = (id) => document.getElementById(id);
+    if (el('resumen-subtitulo')) el('resumen-subtitulo').textContent = `${dia.length} comidas · ~${window.ui.formatearNumero(tot.kcal)} kcal`;
+    if (el('r-prot'))   el('r-prot').textContent   = `P: ${Math.round(tot.prot)}g`;
+    if (el('r-grasa'))  el('r-grasa').textContent  = `G: ${Math.round(tot.grasa)}g`;
+    if (el('r-carb'))   el('r-carb').textContent   = `C: ${Math.round(tot.carb)}g`;
+    if (el('r-status')) el('r-status').textContent = statusBarra;
+    if (el('r-pct'))    el('r-pct').textContent    = `${pct}% del objetivo (${window.ui.formatearNumero(objetivo.kcal)} kcal)`;
+    if (el('r-barra'))  { el('r-barra').style.width = `${Math.min(pct,100)}%`; el('r-barra').style.background = colorBarra; }
+
+    // Warning general del día
+    const warnDia = document.getElementById('warning-dia');
+    if (warnDia) {
+      if (pct > 105) {
+        warnDia.innerHTML = `<div class="alert-warning-dia">🔴 Superaste el objetivo diario: ${window.ui.formatearNumero(tot.kcal)} kcal vs ${window.ui.formatearNumero(objetivo.kcal)} kcal meta</div>`;
+      } else if (pct < 70) {
+        warnDia.innerHTML = `<div class="alert-warning-dia" style="background:#fef9c3;border-color:#f59e0b;color:#92400e;">🟡 El menú está muy por debajo del objetivo. Agrega alimentos o aumenta porciones.</div>`;
+      } else {
+        warnDia.innerHTML = '';
+      }
     }
   },
 
+  // ─── Obtener comida del menú generado ────────────────────
+  obtenerComida(key) {
+    const partes  = key.split('-');
+    const diaIdx  = parseInt(partes[0]);
+    const tiempo  = partes.slice(1).join('-');
+    const dia     = diaIdx === 0 ? this.menuGenerado?.diaBase : this.menuGenerado?.semana?.[diaIdx - 1];
+    const comida  = dia?.find(c => c.tiempo === tiempo);
+    return { diaIdx, tiempo, comida };
+  },
+
+  // ─── Botones inferiores ───────────────────────────────────
   renderBotones() {
     return `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
@@ -1138,26 +966,27 @@ window.dieta = {
               style="border-color:#10b981;color:#10b981;">🧂 Guía de sazón</button>
     </div>
     <div class="alert alert-info mt-3" style="font-size:0.82rem;">
-      <strong>ℹ️</strong> Toca <strong>👨‍🍳 Receta</strong> en cualquier alimento para ver cómo prepararlo.
-      Este menú es orientativo y no reemplaza asesoría nutricional profesional.
+      <strong>ℹ️</strong> Toca 👨‍🍳 para ver recetas. Usa +/− para ajustar porciones. Toca 🔄 para sustituir un alimento.
     </div>`;
   },
 
+  // ─── Estilos ──────────────────────────────────────────────
   renderEstilos() {
     return `<style id="estilos-dieta">
       .btn-vista{padding:8px 18px;border-radius:999px;border:1.5px solid var(--color-borde);background:var(--color-superficie);color:var(--color-texto-secundario);font-size:0.85rem;font-weight:500;cursor:pointer;transition:var(--transicion);font-family:inherit;}
       .btn-vista.activa{background:var(--color-primario);color:white;border-color:var(--color-primario);}
-      .prefs-grid{display:flex;flex-direction:column;gap:16px;}
       .pref-label{font-size:0.78rem;font-weight:700;color:var(--color-texto-secundario);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px;}
       .btn-group-pref{display:flex;flex-wrap:wrap;gap:6px;}
-      .btn-pref{padding:5px 12px;border-radius:999px;border:1.5px solid var(--color-borde);background:var(--color-superficie);color:var(--color-texto-secundario);font-size:0.8rem;font-weight:500;cursor:pointer;transition:var(--transicion);font-family:inherit;}
+      .btn-pref{padding:5px 12px;border-radius:999px;border:1.5px solid var(--color-borde);background:var(--color-superficie);color:var(--color-texto-secundario);font-size:0.8rem;font-weight:500;cursor:pointer;font-family:inherit;}
       .btn-pref.activo{background:var(--color-primario);color:white;border-color:var(--color-primario);}
-      .check-pref{display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer;padding:5px 10px;border-radius:8px;border:1.5px solid var(--color-borde);background:var(--color-superficie);transition:var(--transicion);user-select:none;}
+      .check-pref{display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer;padding:5px 10px;border-radius:8px;border:1.5px solid var(--color-borde);background:var(--color-superficie);user-select:none;}
       .check-pref input{accent-color:var(--color-primario);}
-      .item-swap-wrap{border-radius:8px;overflow:hidden;}
-      .btn-agregar-item{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border-radius:999px;border:1.5px dashed var(--color-primario);background:transparent;color:var(--color-primario);font-size:0.82rem;font-weight:600;cursor:pointer;transition:var(--transicion);font-family:inherit;}
-      .btn-agregar-item:hover{background:#ecfdf5;}
-      .badge-ajuste{margin-top:8px;font-size:0.75rem;color:#3b82f6;background:#eff6ff;border-radius:6px;padding:4px 9px;display:inline-block;font-weight:600;}
+      .item-wrap{border-radius:8px;overflow:hidden;margin-bottom:2px;}
+      .btn-agregar-item{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border-radius:999px;border:1.5px dashed var(--color-primario);background:transparent;color:var(--color-primario);font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;}
+      .btn-porcion{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--color-borde);background:var(--color-superficie);color:var(--color-texto-principal);font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;line-height:1;}
+      .btn-porcion:hover{background:var(--color-primario);color:white;border-color:var(--color-primario);}
+      .warning-comida{background:#fee2e2;color:#991b1b;border-radius:6px;padding:6px 10px;font-size:0.78rem;font-weight:600;margin-top:6px;}
+      .alert-warning-dia{background:#fee2e2;border:1.5px solid #ef4444;border-radius:10px;padding:10px 14px;font-size:0.82rem;color:#991b1b;font-weight:600;margin-bottom:12px;}
     </style>`;
   }
 };
