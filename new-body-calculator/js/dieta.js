@@ -91,14 +91,14 @@ window.dieta = {
       vegetales:     'todas',
     },
     snack1: {
-      proteina_base: ['A-0014','A-0085','A-0004'],
+      proteina_base: [],
       proteina_mixta:[],
-      carbo_base:    ['A-0026','A-0025'],
-      grasa_base:    ['A-0040','A-0041','A-0042'],
+      carbo_base:    ['A-0026','A-0034'],
+      grasa_base:    ['A-0041','A-0042','A-0043'],
       frutas:        'todas',
     },
     snack2: {
-      proteina_base: ['A-0014','A-0004','A-0085'],
+      proteina_base: [],
       proteina_mixta:[],
       carbo_base:    ['A-0026','A-0034'],
       grasa_base:    ['A-0041','A-0043','A-0044'],
@@ -173,8 +173,8 @@ window.dieta = {
     // Estructura de comidas
     const estructura = [];
     if (!p.ayuno) estructura.push('desayuno');
-    estructura.push('almuerzo');
     if (p.num_comidas >= 4) estructura.push('snack1');
+    estructura.push('almuerzo');
     if (p.num_comidas >= 5) estructura.push('snack2');
     estructura.push('cena');
 
@@ -455,13 +455,42 @@ window.dieta = {
   },
 
   // No permitir 2 alimentos de la misma subcategoría en una comida
-  subcategoriasEnUso(items) {
-    return items.map(i => i.subcategoria).filter(Boolean);
+  // Familias de alimentos — evita combinar alimentos de la misma familia
+  FAMILIAS: {
+    'cereales': 'almidones',    // arroz, avena, pasta, tortilla, quinoa
+    'panes': 'almidones',       // pan francés, pan integral
+    'tuberculos': 'almidones',  // papa, camote, yuca, plátano
+    'legumbres': 'legumbres',   // frijoles, lentejas, garbanzos, ejote
+  },
+
+  familiaDeAlimento(alimento) {
+    const sub = alimento.subcategoria;
+    if (!sub) return null;
+    return this.FAMILIAS[sub] || sub;
+  },
+
+  familiasEnUso(items) {
+    const familias = [];
+    items.forEach(i => {
+      const fam = this.familiaDeAlimento(i);
+      if (fam && !familias.includes(fam)) familias.push(fam);
+      // También registrar subcategoría exacta para evitar duplicados exactos
+      if (i.subcategoria && !familias.includes(i.subcategoria)) familias.push(i.subcategoria);
+    });
+    return familias;
   },
 
   filtrarPorSubcategoria(lista, items) {
-    const usadas = this.subcategoriasEnUso(items);
-    return lista.filter(a => !a.subcategoria || !usadas.includes(a.subcategoria));
+    const usadas = this.familiasEnUso(items);
+    return lista.filter(a => {
+      if (!a.subcategoria) return true;
+      const familia = this.familiaDeAlimento(a);
+      // Bloquear si la familia ya está usada
+      if (familia && usadas.includes(familia)) return false;
+      // Bloquear si la subcategoría exacta ya está
+      if (usadas.includes(a.subcategoria)) return false;
+      return true;
+    });
   },
 
   limitarPorciones(codigo, porcsCalculadas) {
@@ -514,8 +543,9 @@ window.dieta = {
   },
 
   labelTiempo(t) {
-    return { desayuno:'🌅 Desayuno', almuerzo:'🍽️ Almuerzo', cena:'🌙 Cena',
-             snack1:'🍎 Snack mañana', snack2:'🌿 Snack tarde' }[t] || t;
+    return { desayuno:'🌅 Desayuno', snack1:'🍎 Snack mañana',
+             almuerzo:'🍽️ Almuerzo', snack2:'🌿 Snack tarde',
+             cena:'🌙 Cena' }[t] || t;
   },
 
   // ═══════════════════════════════════════════════════════════
