@@ -939,8 +939,15 @@ window.recetas = {
         </div>
       </div>`;
 
+    // Insertar como modal en body para compatibilidad con todas las versiones
     const wrap = document.getElementById(`wrap-${uid}`) || document.getElementById(`iw-${uid}`);
-    if (wrap) wrap.insertAdjacentElement('afterend', panel);
+    if (wrap) {
+      wrap.insertAdjacentElement('afterend', panel);
+    } else {
+      // Fallback: insertar como modal flotante
+      panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9998;max-height:60vh;overflow-y:auto;background:var(--color-superficie,white);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);animation:slideUpR 0.25s ease;';
+      document.body.appendChild(panel);
+    }
   },
 
   verReceta(codigo, idx, uid) {
