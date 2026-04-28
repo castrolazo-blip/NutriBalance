@@ -939,7 +939,7 @@ window.recetas = {
         </div>
       </div>`;
 
-    const wrap = document.getElementById(`wrap-${uid}`);
+    const wrap = document.getElementById(`wrap-${uid}`) || document.getElementById(`iw-${uid}`);
     if (wrap) wrap.insertAdjacentElement('afterend', panel);
   },
 
