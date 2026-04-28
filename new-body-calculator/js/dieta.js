@@ -232,8 +232,11 @@ window.dieta = {
     // ── PASO 2: Completar proteína con proteína mixta (§5.3) ──
     const protFaltante = meta.prot - cubierto.prot;
     if (protFaltante > this.TOL.prot && pool.proteina_mixta?.length > 0) {
-      const listaMixta = this.buscar(pool.proteina_mixta, p)
-        .filter(a => !items.find(i => i.codigo === a.codigo));
+      const listaMixta = this.filtrarPorSubcategoria(
+        this.buscar(pool.proteina_mixta, p)
+          .filter(a => !items.find(i => i.codigo === a.codigo)),
+        items
+      );
       const mixta = this.elegir(listaMixta, seed + 7);
       if (mixta) {
         const protPorPorcion = mixta.proteina_g || 1;
@@ -248,8 +251,11 @@ window.dieta = {
     // ── PASO 3: Ajuste de grasa (§5.4) ─────────────────────────
     const grasaFaltante = meta.grasa - cubierto.grasa;
     if (grasaFaltante > this.TOL.grasa && pool.grasa_base?.length > 0) {
-      const listaGrasa = this.buscar(pool.grasa_base, p)
-        .filter(a => !items.find(i => i.codigo === a.codigo));
+      const listaGrasa = this.filtrarPorSubcategoria(
+        this.buscar(pool.grasa_base, p)
+          .filter(a => !items.find(i => i.codigo === a.codigo)),
+        items
+      );
       const grasa = this.elegir(listaGrasa, seed + 3);
       if (grasa) {
         const grasaPorPorcion = grasa.grasa_g || 1;
@@ -264,8 +270,11 @@ window.dieta = {
     // ── PASO 4: Ajuste de carbohidratos (§5.5) ─────────────────
     const carboFaltante = meta.carb - cubierto.carb;
     if (carboFaltante > this.TOL.carb) {
-      const listaCarb = this.buscar(pool.carbo_base, p)
-        .filter(a => !items.find(i => i.codigo === a.codigo));
+      const listaCarb = this.filtrarPorSubcategoria(
+        this.buscar(pool.carbo_base, p)
+          .filter(a => !items.find(i => i.codigo === a.codigo)),
+        items
+      );
       // Elegir hasta 2 fuentes de carbo
       const carb1 = this.elegir(listaCarb, seed + 1);
       if (carb1) {
@@ -279,7 +288,7 @@ window.dieta = {
         // Segundo carbo si todavía falta
         const carboFaltante2 = meta.carb - cubierto.carb;
         if (carboFaltante2 > this.TOL.carb) {
-          const listaCarb2 = listaCarb.filter(a => a.codigo !== carb1.codigo);
+          const listaCarb2 = this.filtrarPorSubcategoria(listaCarb.filter(a => a.codigo !== carb1.codigo), items);
           const carb2 = this.elegir(listaCarb2, seed + 5);
           if (carb2) {
             const porcs2 = this.limitarPorciones(carb2.codigo, carboFaltante2 / (carb2.carbo_g || 1));
@@ -293,14 +302,19 @@ window.dieta = {
 
     // ── PASO 5: Vegetal (libre, no afecta macros) ──────────────
     if (pool.vegetales === 'todas') {
-      const vegs = this.alimentos.filter(a => a.categoria === 'vegetales');
+      const vegs = this.filtrarPorSubcategoria(
+        this.alimentos.filter(a => a.categoria === 'vegetales'),
+        items
+      );
       const veg  = this.elegir(vegs, seed + 4);
       if (veg) items.push(this.crearItem(veg, 1, 'vegetales', true));
     }
 
     // ── PASO 6: Frijoles en almuerzo salvadoreño ───────────────
     if (tiempo === 'almuerzo' && p.modo === 'salvadoreno') {
-      if (!items.find(i => i.codigo === 'A-0016' || i.codigo === 'A-0017')) {
+      // Solo agregar frijoles si no hay otra legumbre ya en la comida
+      const yaHayLegumbre = items.some(i => i.subcategoria === 'legumbres');
+      if (!yaHayLegumbre) {
         const frijol = this.alimentos.find(a => a.codigo === 'A-0016');
         if (frijol) {
           items.push(this.crearItem(frijol, 1, 'proteinas'));
@@ -440,6 +454,16 @@ window.dieta = {
     };
   },
 
+  // No permitir 2 alimentos de la misma subcategoría en una comida
+  subcategoriasEnUso(items) {
+    return items.map(i => i.subcategoria).filter(Boolean);
+  },
+
+  filtrarPorSubcategoria(lista, items) {
+    const usadas = this.subcategoriasEnUso(items);
+    return lista.filter(a => !a.subcategoria || !usadas.includes(a.subcategoria));
+  },
+
   limitarPorciones(codigo, porcsCalculadas) {
     const max = this.maxPorc(codigo);
     return Math.max(0.5, Math.min(Math.round(porcsCalculadas * 2) / 2, max));
@@ -467,6 +491,12 @@ window.dieta = {
     if (!codigos || codigos.length === 0) return [];
     let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c)).filter(Boolean);
     return this.filtrar(lista, p);
+  },
+
+  // Verificar si un alimento tiene subcategoría ya usada en los items actuales
+  subcategoriaUsada(items, alimento) {
+    if (!alimento.subcategoria) return false;
+    return items.some(i => i.subcategoria === alimento.subcategoria);
   },
 
   filtrar(lista, p) {
