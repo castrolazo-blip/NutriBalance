@@ -832,13 +832,22 @@ window.dieta = {
     const actual = comida?.items[idx];
     let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c)).filter(Boolean).filter(a => a.codigo !== actual?.codigo);
     lista = this.filtrar(lista, this.preferencias);
+    // Ordenar: primero misma subcategoría del ítem actual, luego el resto
+    const subcatActual = actual?.subcategoria;
+    if (subcatActual) {
+      lista.sort((a, b) => {
+        const aMatch = a.subcategoria === subcatActual ? 0 : 1;
+        const bMatch = b.subcategoria === subcatActual ? 0 : 1;
+        return aMatch - bMatch;
+      });
+    }
 
     const colores = { proteinas:'#991b1b', carbohidratos:'#065f46', grasas:'#92400e', frutas:'#5b21b6', vegetales:'#166534' };
     panel.innerHTML = lista.length === 0
       ? `<div style="padding:8px 12px;font-size:0.82rem;color:var(--color-texto-secundario);">Sin alternativas para este tiempo.</div>`
       : `<div style="background:var(--color-superficie);border:1px solid var(--color-borde);border-radius:0 0 8px 8px;overflow:hidden;">
           <div style="padding:5px 12px;background:var(--color-superficie-hover);font-size:0.72rem;font-weight:700;color:var(--color-texto-secundario);text-transform:uppercase;">🔄 Opciones de ${this.labelTiempo(tiempo)}</div>
-          ${lista.slice(0,8).map(a => `
+          ${lista.slice(0,12).map(a => `
           <div onclick="window.dieta.hacerSust('${key}',${idx},'${a.codigo}','${cat}')"
                style="padding:8px 12px;border-bottom:1px solid var(--color-borde);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
             <div><div style="font-weight:600;font-size:0.85rem;">${a.nombre}</div>
