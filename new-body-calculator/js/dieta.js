@@ -98,13 +98,14 @@ window.dieta = {
   grasa_base: ['A-0041','A-0042','A-0043','A-0040'],
   frutas: 'todas',
 },
-    ssnack2: {
+    snack2: {
   proteina_base: [],
   proteina_mixta: [],
   proteina_perecedera: ['A-0014','A-0015','A-0012','A-0085','A-0003','A-0004'],
   carbo_base: ['A-0026','A-0034'],
   grasa_base: ['A-0041','A-0043','A-0044','A-0040'],
   frutas: 'todas',
+},
 },
 
   // ─── Distribución de macros por comida (% del total diario) ──
@@ -209,15 +210,7 @@ window.dieta = {
 
     return { tiempo, label: this.labelTiempo(tiempo), meta, items };
   });
-}
-
-      const items = tiempo.startsWith('snack')
-        ? this.armarSnack(tiempo, meta, p, seed)
-        : this.armarComida(tiempo, meta, p, seed);
-
-      return { tiempo, label: this.labelTiempo(tiempo), meta, items };
-    });
-  },
+},
 
   // ─── ARMAR COMIDA PRINCIPAL (§5.1 - §5.5) ─────────────────
  armarComida(tiempo, meta, p, seed, usadosDia = new Set()) {
@@ -334,56 +327,57 @@ if (listaProtBase.length === 0) {
   },
 
   // ─── ARMAR SNACK ──────────────────────────────────────────
-  armarSnack(tiempo, meta, p, seed) {
-    const pool  = this.MENU_POOL[tiempo];
-    if (!pool) return [];
-    const items = [];
-    let cubierto = { prot: 0, grasa: 0, carb: 0 };
+ armarSnack(tiempo, meta, p, seed) {
+  const pool = this.MENU_POOL[tiempo];
+  if (!pool) return [];
 
-    // Proteína
-    let listaProt = [];
+  const items = [];
+  let cubierto = { prot: 0, grasa: 0, carb: 0 };
 
-if (p.snack_perecedero && pool.proteina_perecedera?.length > 0) {
-  listaProt = this.buscar(pool.proteina_perecedera, p);
-} else {
-  listaProt = this.buscar(pool.proteina_base, p);
-}
-  if (meta.prot > 10 && listaProt.length > 0) {
-  const prot = this.elegir(listaProt, seed + 10);
+  let listaProt = [];
 
-  if (prot) {
-    const porcs = this.limitarPorciones(prot.codigo, meta.prot / (prot.proteina_g || 1));
-    const item  = this.crearItem(prot, porcs, 'proteinas');
-
-    items.push(item);
-    cubierto = this.sumarMacros(cubierto, item);
+  if (p.snack_perecedero && pool.proteina_perecedera?.length > 0) {
+    listaProt = this.buscar(pool.proteina_perecedera, p);
+  } else {
+    listaProt = this.buscar(pool.proteina_base, p);
   }
 
+  if (meta.prot > 10 && listaProt.length > 0) {
+    const prot = this.elegir(listaProt, seed + 10);
 
-    // Fruta
-    if (pool.frutas === 'todas') {
-      const frutas = this.alimentos.filter(a => a.categoria === 'frutas');
-      const fruta  = this.elegir(frutas, seed + 11);
-      if (fruta) {
-        const item = this.crearItem(fruta, 1, 'frutas');
-        items.push(item);
-        cubierto = this.sumarMacros(cubierto, item);
-      }
+    if (prot) {
+      const porcs = this.limitarPorciones(prot.codigo, meta.prot / (prot.proteina_g || 1));
+      const item = this.crearItem(prot, porcs, 'proteinas');
+      items.push(item);
+      cubierto = this.sumarMacros(cubierto, item);
     }
+  }
 
-    // Grasa si falta
-    const grasaFalt = meta.grasa - cubierto.grasa;
-    if (grasaFalt > 3 && pool.grasa_base?.length > 0) {
-      const listaG = this.buscar(pool.grasa_base, p);
-      const g = this.elegir(listaG, seed + 12);
-      if (g) {
-        const porcs = this.limitarPorciones(g.codigo, grasaFalt / (g.grasa_g || 1));
-        items.push(this.crearItem(g, porcs, 'grasas'));
-      }
+  if (pool.frutas === 'todas') {
+    const frutas = this.alimentos.filter(a => a.categoria === 'frutas');
+    const fruta = this.elegir(frutas, seed + 11);
+
+    if (fruta) {
+      const item = this.crearItem(fruta, 1, 'frutas');
+      items.push(item);
+      cubierto = this.sumarMacros(cubierto, item);
     }
+  }
 
-    return items;
-  },
+  const grasaFalt = meta.grasa - cubierto.grasa;
+
+  if (grasaFalt > 3 && pool.grasa_base?.length > 0) {
+    const listaG = this.buscar(pool.grasa_base, p);
+    const g = this.elegir(listaG, seed + 12);
+
+    if (g) {
+      const porcs = this.limitarPorciones(g.codigo, grasaFalt / (g.grasa_g || 1));
+      items.push(this.crearItem(g, porcs, 'grasas'));
+    }
+  }
+
+  return items;
+},
 
   // ─── AJUSTE FINAL (§7) ────────────────────────────────────
   // Nunca modificar proteína. Solo ajustar carbos.
@@ -598,35 +592,67 @@ if (p.snack_perecedero && pool.proteina_perecedera?.length > 0) {
     this.generar();
   },
 
-  renderPrefs() {
-    const p = this.preferencias;
-    const modos = { salvadoreno:'🇸🇻 Salvadoreño', fitness:'💪 Fitness', economico:'💰 Económico' };
-    return `
-    <div class="card mb-3">
-      <div style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" id="tog-prefs">
-        <span style="font-weight:600;">⚙️ Configurar mi menú</span><span id="arr-prefs">▼</span>
-      </div>
-      <div id="prefs-body" style="display:none;margin-top:14px;">
-        <div style="display:flex;flex-direction:column;gap:14px;">
-          <div><label class="pref-label">🍴 Comidas al día</label>
-            <div class="btn-group-pref">${[3,4,5].map(n=>`<button class="btn-pref ${p.num_comidas===n?'activo':''}" data-pref="num_comidas" data-val="${n}">${n}</button>`).join('')}</div>
-          </div>
-          <div><label class="pref-label">🌟 Estilo</label>
-            <div class="btn-group-pref">${Object.entries(modos).map(([k,v])=>`<button class="btn-pref ${p.modo===k?'activo':''}" data-pref="modo" data-val="${k}">${v}</button>`).join('')}</div>
-          </div>
-          <div><label class="pref-label">🚫 Restricciones</label>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-              ${['sin_lacteos:🥛 Sin lácteos','sin_gluten:🌾 Sin gluten','sin_cerdo:🐷 Sin cerdo','vegetariano:🥦 Vegetariano']
-                .map(s => { const [k,l] = s.split(':'); return `<label class="check-pref"><input type="checkbox" data-restr="${k}" ${(p.restricciones||[]).includes(k)?'checked':''}><span>${l}</span></label>`; }).join('')}
-            </div>
-          </div>
-         <label class="check-pref"><input type="checkbox" data-check="ayuno" ${p.ayuno?'checked':''}><span>⏱️ Ayuno intermitente</span></label>
+renderPrefs() {
+  const p = this.preferencias;
+  const modos = { 
+    salvadoreno:'🇸🇻 Salvadoreño', 
+    fitness:'💪 Fitness', 
+    economico:'💰 Económico' 
+  };
 
-<label class="check-pref"><input type="checkbox" data-check="snack_perecedero" ${p.snack_perecedero?'checked':''}><span>🧊 Mis snacks pueden llevar comida perecedera</span></label>
-        <button class="btn btn-primary mt-3" id="btn-aplicar" style="width:100%;">✅ Aplicar y generar menú</button>
+  return `
+  <div class="card mb-3">
+    <div style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" id="tog-prefs">
+      <span style="font-weight:600;">⚙️ Configurar mi menú</span>
+      <span id="arr-prefs">▼</span>
+    </div>
+
+    <div id="prefs-body" style="display:none;margin-top:14px;">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+
+        <div>
+          <label class="pref-label">🍴 Comidas al día</label>
+          <div class="btn-group-pref">
+            ${[3,4,5].map(n=>`<button class="btn-pref ${p.num_comidas===n?'activo':''}" data-pref="num_comidas" data-val="${n}">${n}</button>`).join('')}
+          </div>
+        </div>
+
+        <div>
+          <label class="pref-label">🌟 Estilo</label>
+          <div class="btn-group-pref">
+            ${Object.entries(modos).map(([k,v])=>`<button class="btn-pref ${p.modo===k?'activo':''}" data-pref="modo" data-val="${k}">${v}</button>`).join('')}
+          </div>
+        </div>
+
+        <div>
+          <label class="pref-label">🚫 Restricciones</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${['sin_lacteos:🥛 Sin lácteos','sin_gluten:🌾 Sin gluten','sin_cerdo:🐷 Sin cerdo','vegetariano:🥦 Vegetariano']
+              .map(s => { 
+                const [k,l] = s.split(':'); 
+                return `<label class="check-pref"><input type="checkbox" data-restr="${k}" ${(p.restricciones||[]).includes(k)?'checked':''}><span>${l}</span></label>`; 
+              }).join('')}
+          </div>
+        </div>
+
+        <label class="check-pref">
+          <input type="checkbox" data-check="ayuno" ${p.ayuno?'checked':''}>
+          <span>⏱️ Ayuno intermitente</span>
+        </label>
+
+        <label class="check-pref">
+          <input type="checkbox" data-check="snack_perecedero" ${p.snack_perecedero?'checked':''}>
+          <span>🧊 ¿Tienes acceso a refrigeración para tus snacks?</span>
+        </label>
+
+        <button class="btn btn-primary mt-3" id="btn-aplicar" style="width:100%;">
+          ✅ Aplicar y generar menú
+        </button>
+
       </div>
-    </div>`;
-  },
+    </div>
+  </div>`;
+},
 
   bindEventos() {
     document.getElementById('tog-prefs')?.addEventListener('click', () => {
