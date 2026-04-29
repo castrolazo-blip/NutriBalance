@@ -90,21 +90,22 @@ window.dieta = {
       grasa_base:    ['A-0036','A-0040','A-0041','A-0043','A-0044'],
       vegetales:     'todas',
     },
-    snack1: {
-      proteina_base: [],
-      proteina_mixta:[],
-      carbo_base:    ['A-0026','A-0034'],
-      grasa_base:    ['A-0041','A-0042','A-0043'],
-      frutas:        'todas',
-    },
-    snack2: {
-      proteina_base: [],
-      proteina_mixta:[],
-      carbo_base:    ['A-0026','A-0034'],
-      grasa_base:    ['A-0041','A-0043','A-0044'],
-      frutas:        'todas',
-    },
-  },
+   snack1: {
+  proteina_base: [],
+  proteina_mixta: [],
+  proteina_perecedera: ['A-0014','A-0015','A-0012','A-0085','A-0003','A-0004'],
+  carbo_base: ['A-0026','A-0034'],
+  grasa_base: ['A-0041','A-0042','A-0043','A-0040'],
+  frutas: 'todas',
+},
+    ssnack2: {
+  proteina_base: [],
+  proteina_mixta: [],
+  proteina_perecedera: ['A-0014','A-0015','A-0012','A-0085','A-0003','A-0004'],
+  carbo_base: ['A-0026','A-0034'],
+  grasa_base: ['A-0041','A-0043','A-0044','A-0040'],
+  frutas: 'todas',
+},
 
   // ─── Distribución de macros por comida (% del total diario) ──
   DIST: {
@@ -113,12 +114,13 @@ window.dieta = {
     5: { desayuno:0.20, almuerzo:0.30, snack1:0.10, snack2:0.10, cena:0.30 },
   },
 
-  PREF_DEFAULT: {
-    num_comidas:   4,
-    ayuno:         false,
-    modo:          'salvadoreno',
-    restricciones: [],
-  },
+ PREF_DEFAULT: {
+  num_comidas: 4,
+  ayuno: false,
+  modo: 'salvadoreno',
+  restricciones: [],
+  snack_perecedero: false,
+},
 
   // ─── Tolerancias (documento técnico §6.1) ─────────────────
   TOL: { prot: 5, grasa: 5, carb: 10 },
@@ -189,15 +191,25 @@ window.dieta = {
   },
 
   generarDia(estructura, dist, macrosDia, p, seed) {
-    return estructura.map(tiempo => {
-      const pct = dist[tiempo] || 0.20;
-      // Meta de GRAMOS por macro para esta comida
-      const meta = {
-        prot:  Math.round(macrosDia.prot  * pct),
-        grasa: Math.round(macrosDia.grasa * pct),
-        carb:  Math.round(macrosDia.carb  * pct),
-        kcal:  Math.round(macrosDia.kcal  * pct),
-      };
+  const usadosDia = new Set();
+
+  return estructura.map(tiempo => {
+    const pct = dist[tiempo] || 0.20;
+
+    const meta = {
+      prot:  Math.round(macrosDia.prot  * pct),
+      grasa: Math.round(macrosDia.grasa * pct),
+      carb:  Math.round(macrosDia.carb  * pct),
+      kcal:  Math.round(macrosDia.kcal  * pct),
+    };
+
+    const items = tiempo.startsWith('snack')
+      ? this.armarSnack(tiempo, meta, p, seed)
+      : this.armarComida(tiempo, meta, p, seed, usadosDia);
+
+    return { tiempo, label: this.labelTiempo(tiempo), meta, items };
+  });
+}
 
       const items = tiempo.startsWith('snack')
         ? this.armarSnack(tiempo, meta, p, seed)
@@ -208,7 +220,7 @@ window.dieta = {
   },
 
   // ─── ARMAR COMIDA PRINCIPAL (§5.1 - §5.5) ─────────────────
-  armarComida(tiempo, meta, p, seed) {
+ armarComida(tiempo, meta, p, seed, usadosDia = new Set()) {
     const pool  = this.MENU_POOL[tiempo];
     if (!pool) return [];
     const items = [];
@@ -217,7 +229,12 @@ window.dieta = {
     let cubierto = { prot: 0, grasa: 0, carb: 0 };
 
     // ── PASO 1: Proteína base (§5.1) ─────────────────────────
-    const listaProtBase = this.buscar(pool.proteina_base, p);
+   let listaProtBase = this.buscar(pool.proteina_base, p)
+  .filter(a => !usadosDia.has(a.codigo));
+
+if (listaProtBase.length === 0) {
+  listaProtBase = this.buscar(pool.proteina_base, p);
+}
     const protBase = this.elegir(listaProtBase, seed);
     if (protBase) {
       // Calcular porciones para cubrir la mayor parte de la proteína
@@ -226,8 +243,9 @@ window.dieta = {
       const porcs = this.limitarPorciones(protBase.codigo, porcsNecesarias);
       const item  = this.crearItem(protBase, porcs, 'proteinas');
       items.push(item);
+        usadosDia.add(protBase.codigo);
       cubierto = this.sumarMacros(cubierto, item);
-    }
+       }
 
     // ── PASO 2: Completar proteína con proteína mixta (§5.3) ──
     const protFaltante = meta.prot - cubierto.prot;
@@ -310,18 +328,7 @@ window.dieta = {
       if (veg) items.push(this.crearItem(veg, 1, 'vegetales', true));
     }
 
-    // ── PASO 6: Frijoles en almuerzo salvadoreño ───────────────
-    if (tiempo === 'almuerzo' && p.modo === 'salvadoreno') {
-      // Solo agregar frijoles si no hay otra legumbre ya en la comida
-      const yaHayLegumbre = items.some(i => i.subcategoria === 'legumbres');
-      if (!yaHayLegumbre) {
-        const frijol = this.alimentos.find(a => a.codigo === 'A-0016');
-        if (frijol) {
-          items.push(this.crearItem(frijol, 1, 'proteinas'));
-        }
-      }
-    }
-
+  
     // ── PASO 7: Ajuste final (§7) ──────────────────────────────
     return this.ajusteFinal(items, meta);
   },
@@ -334,14 +341,24 @@ window.dieta = {
     let cubierto = { prot: 0, grasa: 0, carb: 0 };
 
     // Proteína
-    const listaProt = this.buscar(pool.proteina_base, p);
-    const prot = this.elegir(listaProt, seed + 10);
-    if (prot) {
-      const porcs = this.limitarPorciones(prot.codigo, meta.prot / (prot.proteina_g || 1));
-      const item  = this.crearItem(prot, porcs, 'proteinas');
-      items.push(item);
-      cubierto = this.sumarMacros(cubierto, item);
-    }
+    let listaProt = [];
+
+if (p.snack_perecedero && pool.proteina_perecedera?.length > 0) {
+  listaProt = this.buscar(pool.proteina_perecedera, p);
+} else {
+  listaProt = this.buscar(pool.proteina_base, p);
+}
+  if (meta.prot > 10 && listaProt.length > 0) {
+  const prot = this.elegir(listaProt, seed + 10);
+
+  if (prot) {
+    const porcs = this.limitarPorciones(prot.codigo, meta.prot / (prot.proteina_g || 1));
+    const item  = this.crearItem(prot, porcs, 'proteinas');
+
+    items.push(item);
+    cubierto = this.sumarMacros(cubierto, item);
+  }
+
 
     // Fruta
     if (pool.frutas === 'todas') {
@@ -603,8 +620,9 @@ window.dieta = {
                 .map(s => { const [k,l] = s.split(':'); return `<label class="check-pref"><input type="checkbox" data-restr="${k}" ${(p.restricciones||[]).includes(k)?'checked':''}><span>${l}</span></label>`; }).join('')}
             </div>
           </div>
-          <label class="check-pref"><input type="checkbox" data-check="ayuno" ${p.ayuno?'checked':''}><span>⏱️ Ayuno intermitente</span></label>
-        </div>
+         <label class="check-pref"><input type="checkbox" data-check="ayuno" ${p.ayuno?'checked':''}><span>⏱️ Ayuno intermitente</span></label>
+
+<label class="check-pref"><input type="checkbox" data-check="snack_perecedero" ${p.snack_perecedero?'checked':''}><span>🧊 Mis snacks pueden llevar comida perecedera</span></label>
         <button class="btn btn-primary mt-3" id="btn-aplicar" style="width:100%;">✅ Aplicar y generar menú</button>
       </div>
     </div>`;
