@@ -324,7 +324,7 @@ window.dieta = {
       const listaC = filtrarCompatible(this.buscar(pool.carbo_base, p));
       const carb1  = this.elegir(listaC, seed + 1);
       if (carb1) {
-        const porcs = this.calcPorciones(carb1, carbFalt * 0.55, 'carb');
+        const porcs = this.calcPorciones(carb1, carbFalt * 0.40, 'carb');
         const item  = this.crearItem(carb1, porcs, 'carbohidratos');
         items.push(item);
         cubierto = this.sumar(cubierto, item);
@@ -336,7 +336,7 @@ window.dieta = {
           const listaC2 = filtrarCompatible(this.buscar(pool.carbo_base, p));
           const carb2   = this.elegir(listaC2, seed + 6);
           if (carb2) {
-            const porcs2 = this.calcPorciones(carb2, carbFalt2, 'carb');
+            const porcs2 = this.calcPorciones(carb2, carbFalt2 * 0.50, 'carb');
             const item2  = this.crearItem(carb2, porcs2, 'carbohidratos');
             items.push(item2);
             cubierto = this.sumar(cubierto, item2);
