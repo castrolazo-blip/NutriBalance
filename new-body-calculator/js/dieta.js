@@ -443,7 +443,7 @@ window.dieta = {
     let diff = meta.kcal - kcalActual;
 
     // Tolerancia: ±5% de la meta calórica
-    const tolKcal = meta.kcal * 0.05;
+    const tolKcal = meta.kcal * 0.01; // tolerancia 1% — carbos máximo ~100%
     if (Math.abs(diff) <= tolKcal) return items;
 
     const carbos = items.filter(i => i._cat === 'carbohidratos' && !i._alGusto);
