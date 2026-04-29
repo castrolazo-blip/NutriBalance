@@ -85,7 +85,7 @@ window.dieta = {
     },
     cena: {
       proteina_base: ['A-0001','A-0005','A-0008','A-0010','A-0011'],
-      proteina_mixta:['A-0003','A-0004','A-0016','A-0017','A-0014'],
+      proteina_mixta:['A-0003','A-0004','A-0016','A-0017'],
       carbo_base:    ['A-0021','A-0023','A-0028','A-0029','A-0025'],
       grasa_base:    ['A-0036','A-0040','A-0041','A-0043','A-0044'],
       vegetales:     'todas',
@@ -192,7 +192,8 @@ PREF_DEFAULT: {
   },
 
   generarDia(estructura, dist, macrosDia, p, seed) {
-  const usadosDia = new Set();
+ const usadosDia = new Set();
+const tiposProteinaUsados = new Set();
 
   return estructura.map(tiempo => {
     const pct = dist[tiempo] || 0.20;
@@ -206,14 +207,14 @@ PREF_DEFAULT: {
 
     const items = tiempo.startsWith('snack')
       ? this.armarSnack(tiempo, meta, p, seed)
-      : this.armarComida(tiempo, meta, p, seed, usadosDia);
+      : this.armarComida(tiempo, meta, p, seed, usadosDia, tiposProteinaUsados);
 
     return { tiempo, label: this.labelTiempo(tiempo), meta, items };
   });
 },
 
   // ─── ARMAR COMIDA PRINCIPAL (§5.1 - §5.5) ─────────────────
- armarComida(tiempo, meta, p, seed, usadosDia = new Set()) {
+ armarComida(tiempo, meta, p, seed, usadosDia = new Set(), tiposProteinaUsados = new Set()) {
     const pool  = this.MENU_POOL[tiempo];
     if (!pool) return [];
     const items = [];
@@ -223,17 +224,17 @@ PREF_DEFAULT: {
 
     // ── PASO 1: Proteína base (§5.1) ─────────────────────────
 let listaProtBase = this.buscar(pool.proteina_base, p)
-  .filter(a => !usadosDia.has(a.codigo));
+  .filter(a => !usadosDia.has(a.codigo))
+  .filter(a => !tiposProteinaUsados.has(this.tipoProteina(a)));
 
 if (listaProtBase.length === 0) {
   listaProtBase = this.buscar(pool.proteina_base, p)
     .filter(a => !items.find(i => i.codigo === a.codigo));
 }
 
-// 🔥 prioriza no repetidos pero permite fallback
-listaProtBase.sort(a => usadosDia.has(a.codigo) ? 1 : 0);
+// prioriza proteína no repetida
+listaProtBase.sort(a => tiposProteinaUsados.has(this.tipoProteina(a)) ? 1 : 0);
 
-// ✅ SOLO UNA VEZ
 const protBase = this.elegir(listaProtBase, seed);
 
 if (protBase) {
@@ -245,8 +246,8 @@ if (protBase) {
 
   items.push(item);
 
-  // 🔥 CLAVE PARA QUE NO REPITA EN EL DÍA
   usadosDia.add(protBase.codigo);
+  tiposProteinaUsados.add(this.tipoProteina(protBase));
 
   cubierto = this.sumarMacros(cubierto, item);
 }
@@ -268,8 +269,8 @@ if (protBase) {
         const porcs = this.limitarPorciones(mixta.codigo, porcsNecesarias);
         const item  = this.crearItem(mixta, porcs, 'proteinas');
         items.push(item);
-          usadosDia.add(mixta.codigo);
-        cubierto = this.sumarMacros(cubierto, item);
+usadosDia.add(mixta.codigo);
+tiposProteinaUsados.add(this.tipoProteina(mixta));
       }
     }
 
@@ -554,7 +555,21 @@ if (tiempo === 'almuerzo' && p.modo === 'salvadoreno') {
       return { kcal:a.kcal+t.kcal, prot:a.prot+t.prot, grasa:a.grasa+t.grasa, carb:a.carb+t.carb };
     }, { kcal:0, prot:0, grasa:0, carb:0 });
   },
+tipoProteina(alimento) {
+  if (!alimento?.nombre) return null;
 
+  const n = alimento.nombre.toLowerCase();
+
+  if (n.includes('pollo') || n.includes('pechuga') || n.includes('muslo')) return 'pollo';
+  if (n.includes('res') || n.includes('molida')) return 'res';
+  if (n.includes('cerdo')) return 'cerdo';
+  if (n.includes('atun') || n.includes('tilapia')) return 'pescado';
+  if (n.includes('camaron')) return 'mariscos';
+  if (n.includes('huevo') || n.includes('clara')) return 'huevo';
+  if (n.includes('queso') || n.includes('yogur') || n.includes('requeson')) return 'lacteo';
+
+  return null;
+},
   buscar(codigos, p) {
     if (!codigos || codigos.length === 0) return [];
     let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c)).filter(Boolean);
