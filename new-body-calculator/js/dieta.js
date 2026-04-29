@@ -303,12 +303,14 @@ window.dieta = {
     }
 
     // ── PASO 3: Grasa ─────────────────────────────────────────
+    // Calcular grasa real faltante (descontar grasa ya aportada por proteínas)
     const grasaFalt = meta.grasa - cubierto.grasa;
     if (grasaFalt > this.TOL.grasa && pool.grasa_base?.length > 0) {
       const listaG = filtrarCompatible(this.buscar(pool.grasa_base, p));
       const grasa  = this.elegir(listaG, seed + 3);
       if (grasa) {
-        const porcs = this.calcPorciones(grasa, grasaFalt, 'grasa');
+        // Usar máximo 80% del faltante para no exceder
+        const porcs = this.calcPorciones(grasa, grasaFalt * 0.80, 'grasa');
         const item  = this.crearItem(grasa, porcs, 'grasas');
         items.push(item);
         cubierto = this.sumar(cubierto, item);
@@ -322,7 +324,7 @@ window.dieta = {
       const listaC = filtrarCompatible(this.buscar(pool.carbo_base, p));
       const carb1  = this.elegir(listaC, seed + 1);
       if (carb1) {
-        const porcs = this.calcPorciones(carb1, carbFalt * 0.65, 'carb');
+        const porcs = this.calcPorciones(carb1, carbFalt * 0.55, 'carb');
         const item  = this.crearItem(carb1, porcs, 'carbohidratos');
         items.push(item);
         cubierto = this.sumar(cubierto, item);
@@ -431,36 +433,40 @@ window.dieta = {
   // ─── AJUSTE FINAL DE CARBOS (§7) ──────────────────────────
   // NUNCA modifica proteína ni grasa
   ajustarCarbos(items, meta) {
-    // Calcular kcal actuales desde macros (no de Supabase)
-    let tot = this.totalesItems(items);
-    const kcalActual = (tot.prot * 4) + (tot.carb * 4) + (tot.grasa * 9);
-    const diff = meta.kcal - kcalActual;
+    // kcal siempre calculada desde macros
+    const calcKcal = (its) => {
+      const t = its.reduce((a,i) => ({ p: a.p+(i._prot||0), g: a.g+(i._grasa||0), c: a.c+(i._carb||0) }), {p:0,g:0,c:0});
+      return (t.p * 4) + (t.c * 4) + (t.g * 9);
+    };
 
-    if (Math.abs(diff) < 20) return items; // ya está en rango
+    let kcalActual = calcKcal(items);
+    let diff = meta.kcal - kcalActual;
+
+    // Tolerancia: ±5% de la meta calórica
+    const tolKcal = meta.kcal * 0.05;
+    if (Math.abs(diff) <= tolKcal) return items;
 
     const carbos = items.filter(i => i._cat === 'carbohidratos' && !i._alGusto);
+    if (carbos.length === 0) return items;
 
-    if (diff > 20 && carbos.length > 0) {
-      // Faltan kcal → aumentar carbos
-      const gExtra = diff / 4; // gramos de carbo equivalentes
+    if (diff > tolKcal) {
+      // Faltan kcal → aumentar carbos proporcionalmente
+      const gExtra = diff / 4;
       carbos.forEach(carb => {
         const idx = items.indexOf(carb);
         const carbPorPorc = carb.carbo_g || 1;
-        const porcsExtra = gExtra / carbos.length / carbPorPorc;
-        const nuevaPorc = Math.min(
-          carb._porciones + porcsExtra,
-          this.maxPorc(carb.codigo)
-        );
+        const porcsExtra  = (gExtra / carbos.length) / carbPorPorc;
+        const nuevaPorc   = Math.min(carb._porciones + porcsExtra, this.maxPorc(carb.codigo));
         items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
       });
-    } else if (diff < -20 && carbos.length > 0) {
-      // Sobran kcal → reducir carbos
+    } else if (diff < -tolKcal) {
+      // Sobran kcal → reducir carbos proporcionalmente (nunca bajar de 0.5 porciones)
       const gReducir = Math.abs(diff) / 4;
       carbos.forEach(carb => {
         const idx = items.indexOf(carb);
-        const carbPorPorc = carb.carbo_g || 1;
-        const porcsReducir = gReducir / carbos.length / carbPorPorc;
-        const nuevaPorc = Math.max(0.5, carb._porciones - porcsReducir);
+        const carbPorPorc  = carb.carbo_g || 1;
+        const porcsReducir = (gReducir / carbos.length) / carbPorPorc;
+        const nuevaPorc    = Math.max(0.5, carb._porciones - porcsReducir);
         items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
       });
     }
