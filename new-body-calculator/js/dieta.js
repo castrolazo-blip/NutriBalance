@@ -433,35 +433,15 @@ window.dieta = {
   // ─── AJUSTE FINAL DE CARBOS (§7) ──────────────────────────
   // NUNCA modifica proteína ni grasa
   ajustarCarbos(items, meta) {
-    // kcal siempre calculada desde macros
-    const calcKcal = (its) => {
-      const t = its.reduce((a,i) => ({ p: a.p+(i._prot||0), g: a.g+(i._grasa||0), c: a.c+(i._carb||0) }), {p:0,g:0,c:0});
-      return (t.p * 4) + (t.c * 4) + (t.g * 9);
-    };
-
-    let kcalActual = calcKcal(items);
-    let diff = meta.kcal - kcalActual;
-
-    // Tolerancia: ±5% de la meta calórica
-    const tolKcal = meta.kcal * 0.01; // tolerancia 1% — carbos máximo ~100%
-    if (Math.abs(diff) <= tolKcal) return items;
-
     const carbos = items.filter(i => i._cat === 'carbohidratos' && !i._alGusto);
     if (carbos.length === 0) return items;
 
-    if (diff > tolKcal) {
-      // Faltan kcal → aumentar carbos proporcionalmente
-      const gExtra = diff / 4;
-      carbos.forEach(carb => {
-        const idx = items.indexOf(carb);
-        const carbPorPorc = carb.carbo_g || 1;
-        const porcsExtra  = (gExtra / carbos.length) / carbPorPorc;
-        const nuevaPorc   = Math.min(carb._porciones + porcsExtra, this.maxPorc(carb.codigo));
-        items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
-      });
-    } else if (diff < -tolKcal) {
-      // Sobran kcal → reducir carbos proporcionalmente (nunca bajar de 0.5 porciones)
-      const gReducir = Math.abs(diff) / 4;
+    // Calcular carbos actuales
+    const carbActual = items.reduce((s, i) => s + (i._carb || 0), 0);
+
+    // PRIORIDAD 1: Si carbos exceden meta → reducir SIEMPRE
+    if (carbActual > meta.carb) {
+      const gReducir = carbActual - meta.carb;
       carbos.forEach(carb => {
         const idx = items.indexOf(carb);
         const carbPorPorc  = carb.carbo_g || 1;
@@ -469,6 +449,27 @@ window.dieta = {
         const nuevaPorc    = Math.max(0.5, carb._porciones - porcsReducir);
         items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
       });
+      return items;
+    }
+
+    // PRIORIDAD 2: Si carbos están bien, revisar si faltan kcal
+    const kcalActual = items.reduce((s, i) => s + (i._kcal || 0), 0);
+    const diffKcal   = meta.kcal - kcalActual;
+    const tolKcal    = meta.kcal * 0.05;
+
+    if (diffKcal > tolKcal) {
+      // Faltan kcal Y carbos no exceden → aumentar carbos hasta su meta
+      const carbMaxAgregar = meta.carb - carbActual;
+      if (carbMaxAgregar > 5) {
+        const gExtra = Math.min(diffKcal / 4, carbMaxAgregar);
+        carbos.forEach(carb => {
+          const idx = items.indexOf(carb);
+          const carbPorPorc = carb.carbo_g || 1;
+          const porcsExtra  = (gExtra / carbos.length) / carbPorPorc;
+          const nuevaPorc   = Math.min(carb._porciones + porcsExtra, this.maxPorc(carb.codigo));
+          items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
+        });
+      }
     }
 
     return items;
