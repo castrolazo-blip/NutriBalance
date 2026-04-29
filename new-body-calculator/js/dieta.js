@@ -1,17 +1,17 @@
 /* ============================================================
-   MÓDULO M7: MOTOR DE DIETA v5 — MACRO-FIRST INTELIGENTE
+   MÓDULO M7: MOTOR DE DIETA v6 — MACRO-FIRST DEFINITIVO
    NutriBalance · by Ronald Castro
    ============================================================
-   REGLA FUNDAMENTAL:
-   Los datos en Supabase (kcal, proteina_g, grasa_g, carbo_g)
-   son valores POR porcion_base_g.
-   Ejemplo: Huevo → 72 kcal / 50g (1 huevo)
-   
-   ALGORITMO:
-   1. Proteína MANDA — se cubre primero
-   2. Grasa se controla — se cubre segundo
-   3. Carbohidratos son VARIABLE — se ajustan al final
-   4. Nunca modificar proteína en ajustes finales
+   DATOS EN SUPABASE: kcal/proteina_g/grasa_g/carbo_g son
+   valores POR porcion_base_g (no por 100g).
+   Ej: Huevo entero → 72 kcal / 50g (= 1 huevo)
+
+   REGLAS FUNDAMENTALES:
+   1. Proteína MANDA — se cubre primero, nunca se toca en ajuste
+   2. Grasa — se cubre segundo
+   3. Carbohidratos — variable, se ajustan al final
+   4. kcal = proteina*4 + carbo*4 + grasa*9 (nunca de Supabase)
+   5. Objetivo: 95-105% en todos los macros
    ============================================================ */
 
 window.dieta = {
@@ -25,109 +25,145 @@ window.dieta = {
   preferencias:  null,
   vistaActiva:   'diario',
 
-  // ─── Porciones máximas por alimento (en unidades de porcion_base_g) ──
+  // ─── Porciones máximas por alimento (en nº de porciones base) ──
   MAX_PORCIONES: {
-    'A-0003': 3,   // Huevo: máx 3
-    'A-0004': 5,   // Clara: máx 5
-    'A-0001': 2,   // Pechuga: máx 2
-    'A-0002': 2,   // Muslo: máx 2
-    'A-0005': 2,   // Res: máx 2
-    'A-0006': 2,   // Molida: máx 2
-    'A-0007': 2,   // Cerdo: máx 2
-    'A-0008': 2,   // Atún agua: máx 2
-    'A-0009': 2,   // Atún aceite: máx 2
-    'A-0010': 2,   // Tilapia: máx 2
-    'A-0011': 2,   // Camarones: máx 2
-    'A-0012': 1.5, // Queso fresco: máx 150g
-    'A-0013': 1,   // Mozzarella: máx 100g
-    'A-0014': 3,   // Yogur griego: máx 300g
-    'A-0015': 2,   // Requesón: máx 200g
-    'A-0016': 2,   // Frijoles rojos: máx 200g
-    'A-0017': 2,   // Frijoles negros: máx 200g
-    'A-0021': 2,   // Arroz: máx 200g
-    'A-0023': 4,   // Tortilla: máx 4
-    'A-0024': 3,   // Pan: máx 3
-    'A-0026': 2,   // Avena: máx 2
-    'A-0028': 2,   // Papa: máx 200g
-    'A-0029': 2,   // Camote: máx 200g
-    'A-0036': 1.5, // Aguacate: máx 150g
-    'A-0037': 1,   // Aceite oliva: máx 1 cda
-    'A-0039': 1,   // Mantequilla: máx 1
-    'A-0040': 2,   // Crema maní: máx 2 cdas
-    'A-0041': 2,   // Almendras: máx 56g
-    'A-0042': 2,   // Maní: máx 56g
-    'A-0043': 2,   // Nueces: máx 56g
-    'A-0085': 4,   // Jamón pavo: máx 4 rebanadas
-    'A-0086': 2,   // Salchicha pavo: máx 2
-    'A-0090': 3,   // Pupusa: máx 3
-    'A-0091': 2,   // Pancakes: máx 2
-    'A-0092': 2,   // Dobladita: máx 2
-    'A-0093': 2,   // Tostadas francesas: máx 2
-    'A-0094': 2,   // Wrap huevo: máx 2
+    'A-0003': 3,    // Huevo: máx 3
+    'A-0004': 5,    // Clara: máx 5
+    'A-0001': 2,    // Pechuga: máx 2
+    'A-0002': 2,    // Muslo: máx 2
+    'A-0005': 2,    // Res: máx 2
+    'A-0006': 2,    // Molida: máx 2
+    'A-0007': 2,    // Cerdo: máx 2
+    'A-0008': 2,    // Atún agua: máx 2
+    'A-0009': 2,    // Atún aceite: máx 2
+    'A-0010': 2,    // Tilapia: máx 2
+    'A-0011': 2,    // Camarones: máx 2
+    'A-0012': 1.5,  // Queso fresco: máx 150g
+    'A-0013': 1,    // Mozzarella: máx 100g
+    'A-0014': 3,    // Yogur griego: máx 300g
+    'A-0015': 2,    // Requesón: máx 200g
+    'A-0016': 2,    // Frijoles rojos: máx 200g
+    'A-0017': 2,    // Frijoles negros: máx 200g
+    'A-0019': 2,    // Garbanzos: máx 200g
+    'A-0018': 2,    // Lentejas: máx 200g
+    'A-0021': 2,    // Arroz: máx 200g
+    'A-0022': 2,    // Arroz integral: máx 200g
+    'A-0023': 4,    // Tortilla: máx 4
+    'A-0024': 3,    // Pan francés: máx 3
+    'A-0025': 3,    // Pan integral: máx 3
+    'A-0026': 2,    // Avena: máx 2
+    'A-0028': 2,    // Papa: máx 200g
+    'A-0029': 2,    // Camote: máx 200g
+    'A-0036': 1.5,  // Aguacate: máx 150g
+    'A-0037': 1,    // Aceite oliva: máx 1 cda
+    'A-0039': 1,    // Mantequilla: máx 1
+    'A-0040': 2,    // Crema maní: máx 2 cdas
+    'A-0041': 2,    // Almendras: máx 56g
+    'A-0042': 2,    // Maní: máx 56g
+    'A-0043': 2,    // Nueces: máx 56g
+    'A-0044': 2,    // Chía: máx 30g
+    'A-0045': 2,    // Marañón: máx 56g
+    'A-0085': 4,    // Jamón pavo: máx 4 rebanadas
+    'A-0086': 2,    // Salchicha pavo: máx 2
+    'A-0090': 3,    // Pupusa queso: máx 3
+    'A-0091': 2,    // Pancakes: máx 2
+    'A-0092': 2,    // Dobladita: máx 2
+    'A-0093': 2,    // Tostadas francesas: máx 2
+    'A-0094': 2,    // Wrap huevo: máx 2
   },
 
-  // ─── Alimentos por tiempo de comida y rol ─────────────────
+  // ─── Tipo de proteína — evita combinar del mismo tipo ─────
+  TIPO_PROTEINA: {
+    'A-0001': 'pollo',    'A-0002': 'pollo',
+    'A-0003': 'huevo',    'A-0004': 'huevo',
+    'A-0005': 'res',      'A-0006': 'res',
+    'A-0007': 'cerdo',
+    'A-0008': 'pescado',  'A-0009': 'pescado',  'A-0010': 'pescado',
+    'A-0011': 'mariscos',
+    'A-0012': 'lacteo',   'A-0013': 'lacteo',
+    'A-0014': 'lacteo',   'A-0015': 'lacteo',
+    'A-0016': 'legumbre', 'A-0017': 'legumbre',
+    'A-0018': 'legumbre', 'A-0019': 'legumbre',
+    'A-0085': 'embutido', 'A-0086': 'embutido',
+    'A-0020': 'vegetal',
+  },
+
+  // ─── Compatibilidades — evita combinar proteínas raras ────
+  INCOMPATIBLES: [
+    ['pescado',  'lacteo'],
+    ['pescado',  'embutido'],
+    ['mariscos', 'lacteo'],
+    ['mariscos', 'embutido'],
+    ['huevo',    'embutido'],  // huevo + jamón está bien en desayuno, pero no en almuerzo
+  ],
+
+  // ─── Familias para evitar duplicar almidones/legumbres ────
+  FAMILIA: {
+    'cereales':   'almidones',
+    'panes':      'almidones',
+    'tuberculos': 'almidones',
+    'legumbres':  'legumbres',  // frijoles, lentejas, garbanzos, ejote
+  },
+
+  // ─── Pool de alimentos por comida ─────────────────────────
   MENU_POOL: {
     desayuno: {
-      proteina_base: ['A-0003','A-0004','A-0085','A-0086'],
-      proteina_mixta:['A-0012','A-0014','A-0015','A-0016'],
-      carbo_base:    ['A-0023','A-0024','A-0025','A-0026','A-0034'],
-      grasa_base:    ['A-0036','A-0039','A-0040','A-0041'],
-      combinados:    ['A-0090','A-0091','A-0092','A-0093','A-0094'],
-      frutas:        'todas',
+      proteina_base:      ['A-0003','A-0004','A-0085'],
+      proteina_mixta:     ['A-0012','A-0014','A-0015'],
+      proteina_perecedera:['A-0014','A-0015','A-0012','A-0085','A-0003','A-0004'],
+      carbo_base:         ['A-0023','A-0024','A-0025','A-0026'],
+      grasa_base:         ['A-0036','A-0039','A-0041','A-0043'],
+      combinados:         ['A-0090','A-0091','A-0092','A-0093','A-0094'],
     },
     almuerzo: {
-      proteina_base: ['A-0001','A-0002','A-0005','A-0006','A-0007','A-0008','A-0010','A-0011'],
-      proteina_mixta:['A-0016','A-0017','A-0019','A-0018'],
-      carbo_base:    ['A-0021','A-0022','A-0023','A-0027','A-0028','A-0030','A-0031','A-0035'],
-      grasa_base:    ['A-0036','A-0037','A-0040','A-0041','A-0042','A-0043'],
-      vegetales:     'todas',
+      proteina_base:      ['A-0001','A-0002','A-0005','A-0006','A-0008','A-0010'],
+      proteina_mixta:     ['A-0016','A-0017','A-0019','A-0018'],
+      carbo_base:         ['A-0021','A-0022','A-0023','A-0028','A-0029','A-0027'],
+      grasa_base:         ['A-0036','A-0041','A-0042','A-0043'],
+      vegetales:          'todas',
     },
     cena: {
-      proteina_base: ['A-0001','A-0005','A-0008','A-0010','A-0011'],
-      proteina_mixta:['A-0003','A-0004','A-0016','A-0017'],
-      carbo_base:    ['A-0021','A-0023','A-0028','A-0029','A-0025'],
-      grasa_base:    ['A-0036','A-0040','A-0041','A-0043','A-0044'],
-      vegetales:     'todas',
+      proteina_base:      ['A-0001','A-0005','A-0008','A-0010'],
+      proteina_mixta:     ['A-0003','A-0004','A-0016','A-0017'],
+      carbo_base:         ['A-0021','A-0023','A-0028','A-0029','A-0025'],
+      grasa_base:         ['A-0036','A-0041','A-0043','A-0044'],
+      vegetales:          'todas',
     },
-
-  snack1: {
-  proteina_base: ['A-0041','A-0042','A-0043'], // maní, almendras, nueces
-  proteina_mixta: [],
-  proteina_perecedera: ['A-0014','A-0015','A-0012','A-0085','A-0003','A-0004'],
-  carbo_base: ['A-0026','A-0034'],
-  grasa_base: ['A-0041','A-0042','A-0043','A-0040'],
-  frutas: 'todas',
-},
-snack2: {
-  proteina_base: ['A-0041','A-0042','A-0043'], // maní, almendras, nueces
-  proteina_mixta: [],
-  proteina_perecedera: ['A-0014','A-0015','A-0012','A-0085','A-0003','A-0004'],
-  carbo_base: ['A-0026','A-0034'],
-  grasa_base: ['A-0041','A-0042','A-0043','A-0040'],
-  frutas: 'todas',
-},
-},
-
-  // ─── Distribución de macros por comida (% del total diario) ──
-  DIST: {
-    3: { desayuno:0.30, almuerzo:0.40, cena:0.30 },
-    4: { desayuno:0.20, almuerzo:0.35, snack1:0.10, cena:0.35 },
-    5: { desayuno:0.20, almuerzo:0.30, snack1:0.10, snack2:0.10, cena:0.30 },
+    snack1: {
+      proteina_base:      [],
+      proteina_perecedera:['A-0014','A-0015','A-0012','A-0085'],
+      carbo_base:         ['A-0026','A-0034'],
+      grasa_base:         ['A-0041','A-0042','A-0043','A-0045'],
+      frutas:             'todas',
+    },
+    snack2: {
+      proteina_base:      [],
+      proteina_perecedera:['A-0014','A-0015','A-0012'],
+      carbo_base:         ['A-0026','A-0034'],
+      grasa_base:         ['A-0041','A-0043','A-0044','A-0045'],
+      frutas:             'todas',
+    },
   },
 
-PREF_DEFAULT: {
-  num_comidas: 4,
-  ayuno: false,
-  modo: 'salvadoreno',
-  restricciones: [],
-  snack_perecedero: false
-},
-  // ─── Tolerancias (documento técnico §6.1) ─────────────────
+  // ─── Distribución de macros por comida ────────────────────
+  DIST: {
+    3: { desayuno:0.30, almuerzo:0.40, cena:0.30 },
+    4: { desayuno:0.20, snack1:0.10, almuerzo:0.35, cena:0.35 },
+    5: { desayuno:0.20, snack1:0.10, almuerzo:0.30, snack2:0.10, cena:0.30 },
+  },
+
+  PREF_DEFAULT: {
+    num_comidas:      4,
+    ayuno:            false,
+    modo:             'salvadoreno',
+    restricciones:    [],
+    snack_perecedero: false,
+  },
+
   TOL: { prot: 5, grasa: 5, carb: 10 },
 
   // ═══════════════════════════════════════════════════════════
-  // CARGA E INICIALIZACIÓN
+  // CARGA
   // ═══════════════════════════════════════════════════════════
   async cargar() {
     const uid = window.app.usuario.id;
@@ -160,292 +196,273 @@ PREF_DEFAULT: {
   },
 
   // ═══════════════════════════════════════════════════════════
-  // ALGORITMO MACRO-FIRST (§5 del documento)
+  // ALGORITMO MACRO-FIRST
   // ═══════════════════════════════════════════════════════════
-
   generarMenu() {
     const r = this.calculoActual;
     const p = this.preferencias;
     const macrosDia = {
-      kcal: r.kcal_objetivo,
-      prot: r.proteina_g,
+      kcal:  r.kcal_objetivo,
+      prot:  r.proteina_g,
       grasa: r.grasa_g,
-      carb: r.carbo_g,
+      carb:  r.carbo_g,
     };
-
-    // Estructura de comidas
-    const estructura = [];
-    if (!p.ayuno) estructura.push('desayuno');
-    if (p.num_comidas >= 4) estructura.push('snack1');
-    estructura.push('almuerzo');
-    if (p.num_comidas >= 5) estructura.push('snack2');
-    estructura.push('cena');
-
-    const dist = this.DIST[p.num_comidas] || this.DIST[4];
-
-    const diaBase = this.generarDia(estructura, dist, macrosDia, p, 0);
-    const semana  = Array.from({ length: 7 }, (_, i) =>
+    const estructura = this.definirEstructura(p);
+    const dist       = this.DIST[p.num_comidas] || this.DIST[4];
+    const diaBase    = this.generarDia(estructura, dist, macrosDia, p, 0);
+    const semana     = Array.from({ length: 7 }, (_, i) =>
       this.generarDia(estructura, dist, macrosDia, p, (i + 1) * 13)
     );
-
     return { diaBase, semana, macrosDia, estructura, dist };
   },
 
+  definirEstructura(p) {
+    const e = [];
+    if (!p.ayuno) e.push('desayuno');
+    if (p.num_comidas >= 4) e.push('snack1');
+    e.push('almuerzo');
+    if (p.num_comidas >= 5) e.push('snack2');
+    e.push('cena');
+    return e;
+  },
+
   generarDia(estructura, dist, macrosDia, p, seed) {
- const usadosDia = new Set();
-const tiposProteinaUsados = new Set();
+    return estructura.map(tiempo => {
+      const pct  = dist[tiempo] || 0.20;
+      const meta = {
+        prot:  macrosDia.prot  * pct,
+        grasa: macrosDia.grasa * pct,
+        carb:  macrosDia.carb  * pct,
+        kcal:  macrosDia.kcal  * pct,
+      };
+      const items = tiempo.startsWith('snack')
+        ? this.armarSnack(tiempo, meta, p, seed)
+        : this.armarComida(tiempo, meta, p, seed);
+      return { tiempo, label: this.labelTiempo(tiempo), meta, items };
+    });
+  },
 
-  return estructura.map(tiempo => {
-    const pct = dist[tiempo] || 0.20;
-
-    const meta = {
-      prot:  Math.round(macrosDia.prot  * pct),
-      grasa: Math.round(macrosDia.grasa * pct),
-      carb:  Math.round(macrosDia.carb  * pct),
-      kcal:  Math.round(macrosDia.kcal  * pct),
-    };
-
-    const items = tiempo.startsWith('snack')
-      ? this.armarSnack(tiempo, meta, p, seed)
-      : this.armarComida(tiempo, meta, p, seed, usadosDia, tiposProteinaUsados);
-
-    return { tiempo, label: this.labelTiempo(tiempo), meta, items };
-  });
-},
-
-  // ─── ARMAR COMIDA PRINCIPAL (§5.1 - §5.5) ─────────────────
- armarComida(tiempo, meta, p, seed, usadosDia = new Set(), tiposProteinaUsados = new Set()) {
-    const pool  = this.MENU_POOL[tiempo];
+  // ─── ARMAR COMIDA PRINCIPAL ───────────────────────────────
+  armarComida(tiempo, meta, p, seed) {
+    const pool = this.MENU_POOL[tiempo];
     if (!pool) return [];
-    const items = [];
 
-    // Acumulador de macros ya cubiertos
+    const items     = [];
+    const tiposUsados  = new Set(); // tipos de proteína ya usados
+    const familiasUsadas = new Set(); // familias de alimentos ya usadas
     let cubierto = { prot: 0, grasa: 0, carb: 0 };
 
-    // ── PASO 1: Proteína base (§5.1) ─────────────────────────
-let listaProtBase = this.buscar(pool.proteina_base, p)
-  .filter(a => !usadosDia.has(a.codigo))
-  .filter(a => !tiposProteinaUsados.has(this.tipoProteina(a)));
+    // ── Helper: filtrar sin repetir tipo ni familia ───────────
+    const filtrarCompatible = (lista) => lista.filter(a => {
+      if (items.find(i => i.codigo === a.codigo)) return false;
+      // No repetir tipo de proteína
+      const tipo = this.TIPO_PROTEINA[a.codigo];
+      if (tipo && tiposUsados.has(tipo)) return false;
+      // No repetir familia de almidón/legumbre
+      const fam = this.FAMILIA[a.subcategoria];
+      if (fam && familiasUsadas.has(fam)) return false;
+      if (a.subcategoria && familiasUsadas.has(a.subcategoria)) return false;
+      // No combinar proteínas incompatibles
+      for (const tipo2 of tiposUsados) {
+        if (this.sonIncompatibles(tipo, tipo2)) return false;
+      }
+      return true;
+    });
 
-if (listaProtBase.length === 0) {
-  listaProtBase = this.buscar(pool.proteina_base, p)
-    .filter(a => !items.find(i => i.codigo === a.codigo));
-}
+    const registrar = (a) => {
+      const tipo = this.TIPO_PROTEINA[a.codigo];
+      if (tipo) tiposUsados.add(tipo);
+      const fam = this.FAMILIA[a.subcategoria];
+      if (fam) familiasUsadas.add(fam);
+      else if (a.subcategoria) familiasUsadas.add(a.subcategoria);
+    };
 
-// prioriza proteína no repetida
-listaProtBase.sort(a => tiposProteinaUsados.has(this.tipoProteina(a)) ? 1 : 0);
+    // ── PASO 1: Proteína base (60% del objetivo proteico) ─────
+    const listaProtBase = filtrarCompatible(this.buscar(pool.proteina_base, p));
+    const protBase = this.elegir(listaProtBase, seed);
+    if (protBase) {
+      const porcs = this.calcPorciones(protBase, meta.prot * 0.60, 'prot');
+      const item  = this.crearItem(protBase, porcs, 'proteinas');
+      items.push(item);
+      cubierto = this.sumar(cubierto, item);
+      registrar(protBase);
+    }
 
-const protBase = this.elegir(listaProtBase, seed);
-
-if (protBase) {
-  const protPorPorcion = protBase.proteina_g || 1;
-  const porcsNecesarias = meta.prot * 0.60 / protPorPorcion;
-
-  const porcs = this.limitarPorciones(protBase.codigo, porcsNecesarias);
-  const item  = this.crearItem(protBase, porcs, 'proteinas');
-
-  items.push(item);
-
-  usadosDia.add(protBase.codigo);
-  tiposProteinaUsados.add(this.tipoProteina(protBase));
-
-  cubierto = this.sumarMacros(cubierto, item);
-}
-       
-
-    // ── PASO 2: Completar proteína con proteína mixta (§5.3) ──
-    const protFaltante = meta.prot - cubierto.prot;
-    if (protFaltante > this.TOL.prot && pool.proteina_mixta?.length > 0) {
-   const listaMixta = this.filtrarPorSubcategoria(
-  this.buscar(pool.proteina_mixta, p)
-    .filter(a => !items.find(i => i.codigo === a.codigo))
-    .filter(a => !usadosDia.has(a.codigo)), // 🔥 ESTE ES EL FIX
-  items
-      );
+    // ── PASO 2: Proteína mixta (restante) ─────────────────────
+    const protFalt = meta.prot - cubierto.prot;
+    if (protFalt > this.TOL.prot && pool.proteina_mixta?.length > 0) {
+      const listaMixta = filtrarCompatible(this.buscar(pool.proteina_mixta, p));
       const mixta = this.elegir(listaMixta, seed + 7);
       if (mixta) {
-        const protPorPorcion = mixta.proteina_g || 1;
-        const porcsNecesarias = protFaltante / protPorPorcion;
-        const porcs = this.limitarPorciones(mixta.codigo, porcsNecesarias);
+        const porcs = this.calcPorciones(mixta, protFalt, 'prot');
         const item  = this.crearItem(mixta, porcs, 'proteinas');
         items.push(item);
-usadosDia.add(mixta.codigo);
-tiposProteinaUsados.add(this.tipoProteina(mixta));
+        cubierto = this.sumar(cubierto, item);
+        registrar(mixta);
       }
     }
 
-    // ── PASO 3: Ajuste de grasa (§5.4) ─────────────────────────
-    const grasaFaltante = meta.grasa - cubierto.grasa;
-    if (grasaFaltante > this.TOL.grasa && pool.grasa_base?.length > 0) {
-      const listaGrasa = this.filtrarPorSubcategoria(
-        this.buscar(pool.grasa_base, p)
-          .filter(a => !items.find(i => i.codigo === a.codigo)),
-        items
-      );
-      const grasa = this.elegir(listaGrasa, seed + 3);
+    // ── PASO 3: Grasa ─────────────────────────────────────────
+    const grasaFalt = meta.grasa - cubierto.grasa;
+    if (grasaFalt > this.TOL.grasa && pool.grasa_base?.length > 0) {
+      const listaG = filtrarCompatible(this.buscar(pool.grasa_base, p));
+      const grasa  = this.elegir(listaG, seed + 3);
       if (grasa) {
-        const grasaPorPorcion = grasa.grasa_g || 1;
-        const porcsNecesarias = grasaFaltante / grasaPorPorcion;
-        const porcs = this.limitarPorciones(grasa.codigo, porcsNecesarias);
+        const porcs = this.calcPorciones(grasa, grasaFalt, 'grasa');
         const item  = this.crearItem(grasa, porcs, 'grasas');
         items.push(item);
-        cubierto = this.sumarMacros(cubierto, item);
+        cubierto = this.sumar(cubierto, item);
+        registrar(grasa);
       }
     }
 
-    // ── PASO 4: Ajuste de carbohidratos (§5.5) ─────────────────
-    const carboFaltante = meta.carb - cubierto.carb;
-    if (carboFaltante > this.TOL.carb) {
-      const listaCarb = this.filtrarPorSubcategoria(
-        this.buscar(pool.carbo_base, p)
-          .filter(a => !items.find(i => i.codigo === a.codigo)),
-        items
-      );
-      // Elegir hasta 2 fuentes de carbo
-      const carb1 = this.elegir(listaCarb, seed + 1);
+    // ── PASO 4: Carbohidrato (variable de ajuste) ─────────────
+    const carbFalt = meta.carb - cubierto.carb;
+    if (carbFalt > this.TOL.carb && pool.carbo_base?.length > 0) {
+      const listaC = filtrarCompatible(this.buscar(pool.carbo_base, p));
+      const carb1  = this.elegir(listaC, seed + 1);
       if (carb1) {
-        const carbPorPorcion = carb1.carbo_g || 1;
-        const porcsNecesarias = Math.min(carboFaltante * 0.6, carboFaltante) / carbPorPorcion;
-        const porcs = this.limitarPorciones(carb1.codigo, porcsNecesarias);
+        const porcs = this.calcPorciones(carb1, carbFalt * 0.65, 'carb');
         const item  = this.crearItem(carb1, porcs, 'carbohidratos');
         items.push(item);
-        cubierto = this.sumarMacros(cubierto, item);
+        cubierto = this.sumar(cubierto, item);
+        registrar(carb1);
 
-        // Segundo carbo si todavía falta
-        const carboFaltante2 = meta.carb - cubierto.carb;
-        if (carboFaltante2 > this.TOL.carb) {
-          const listaCarb2 = this.filtrarPorSubcategoria(listaCarb.filter(a => a.codigo !== carb1.codigo), items);
-          const carb2 = this.elegir(listaCarb2, seed + 5);
+        // Segundo carbo si falta más (familia diferente)
+        const carbFalt2 = meta.carb - cubierto.carb;
+        if (carbFalt2 > this.TOL.carb) {
+          const listaC2 = filtrarCompatible(this.buscar(pool.carbo_base, p));
+          const carb2   = this.elegir(listaC2, seed + 6);
           if (carb2) {
-            const porcs2 = this.limitarPorciones(carb2.codigo, carboFaltante2 / (carb2.carbo_g || 1));
+            const porcs2 = this.calcPorciones(carb2, carbFalt2, 'carb');
             const item2  = this.crearItem(carb2, porcs2, 'carbohidratos');
             items.push(item2);
-            cubierto = this.sumarMacros(cubierto, item2);
+            cubierto = this.sumar(cubierto, item2);
+            registrar(carb2);
           }
         }
       }
     }
 
-    // ── PASO 5: Vegetal (libre, no afecta macros) ──────────────
+    // ── PASO 5: Vegetal (no cuenta en macros) ─────────────────
     if (pool.vegetales === 'todas') {
-      const vegs = this.filtrarPorSubcategoria(
-        this.alimentos.filter(a => a.categoria === 'vegetales'),
-        items
-      );
-      const veg  = this.elegir(vegs, seed + 4);
-      if (veg) items.push(this.crearItem(veg, 1, 'vegetales', true));
+      const vegs = this.alimentos
+        .filter(a => a.categoria === 'vegetales')
+        .filter(a => !familiasUsadas.has(a.subcategoria));
+      const veg = this.elegir(vegs, seed + 4);
+      if (veg) {
+        items.push(this.crearItem(veg, 1, 'vegetales', true));
+        registrar(veg);
+      }
     }
-// ── PASO 6: Frijoles en almuerzo salvadoreño ───────────────
-if (tiempo === 'almuerzo' && p.modo === 'salvadoreno') {
-  const yaHayLegumbre = items.some(i => i.subcategoria === 'legumbres');
 
-  if (!yaHayLegumbre) {
-    const frijol = this.alimentos.find(a => a.codigo === 'A-0016');
-
-    if (frijol) {
-      const item = this.crearItem(frijol, 1, 'proteinas');
-      items.push(item);
-       usadosDia.add('A-0016');
-      cubierto = this.sumarMacros(cubierto, item);
+    // ── PASO 6: Frijoles salvadoreños (inteligente) ───────────
+    // Solo si: modo salvadoreño, almuerzo, y NO hay legumbre ya
+    if (tiempo === 'almuerzo' && p.modo === 'salvadoreno' &&
+        !familiasUsadas.has('legumbres')) {
+      const frijol = this.alimentos.find(a => a.codigo === 'A-0016');
+      if (frijol) {
+        items.push(this.crearItem(frijol, 1, 'proteinas'));
+        registrar(frijol);
+        cubierto = this.sumar(cubierto, items[items.length - 1]);
+      }
     }
-  }
-}
-  
-    // ── PASO 7: Ajuste final (§7) ──────────────────────────────
-    return this.ajusteFinal(items, meta);
+
+    // ── PASO 7: Ajuste final de carbos (nunca tocar proteína) ──
+    return this.ajustarCarbos(items, meta);
   },
 
   // ─── ARMAR SNACK ──────────────────────────────────────────
- armarSnack(tiempo, meta, p, seed) {
-  const pool = this.MENU_POOL[tiempo];
-  if (!pool) return [];
+  armarSnack(tiempo, meta, p, seed) {
+    const pool  = this.MENU_POOL[tiempo];
+    if (!pool) return [];
+    const items = [];
+    let cubierto = { prot: 0, grasa: 0, carb: 0 };
 
-  const items = [];
-  let cubierto = { prot: 0, grasa: 0, carb: 0 };
-
-  let listaProt = [];
-
-  if (p.snack_perecedero && pool.proteina_perecedera?.length > 0) {
-    listaProt = this.buscar(pool.proteina_perecedera, p);
-  } else {
-    listaProt = this.buscar(pool.proteina_base, p);
-  }
-
-  if (meta.prot > 10 && listaProt.length > 0) {
-    const prot = this.elegir(listaProt, seed + 10);
-
-    if (prot) {
-      const porcs = this.limitarPorciones(prot.codigo, meta.prot / (prot.proteina_g || 1));
-      const item = this.crearItem(prot, porcs, 'proteinas');
-      items.push(item);
-      cubierto = this.sumarMacros(cubierto, item);
+    // 1. Fruta (portable, siempre)
+    if (pool.frutas === 'todas') {
+      const frutas = this.alimentos.filter(a => a.categoria === 'frutas');
+      const fruta  = this.elegir(frutas, seed + 10);
+      if (fruta) {
+        const item = this.crearItem(fruta, 1, 'frutas');
+        items.push(item);
+        cubierto = this.sumar(cubierto, item);
+      }
     }
-  }
 
-  if (pool.frutas === 'todas') {
-    const frutas = this.alimentos.filter(a => a.categoria === 'frutas');
-    const fruta = this.elegir(frutas, seed + 11);
-
-    if (fruta) {
-      const item = this.crearItem(fruta, 1, 'frutas');
-      items.push(item);
-      cubierto = this.sumarMacros(cubierto, item);
+    // 2. Fruto seco como GRASA (no como proteína)
+    const grasaFalt = meta.grasa - cubierto.grasa;
+    if (grasaFalt > 3 && pool.grasa_base?.length > 0) {
+      const listaG = this.buscar(pool.grasa_base, p).filter(a => !items.find(i => i.codigo === a.codigo));
+      const g = this.elegir(listaG, seed + 12);
+      if (g) {
+        const porcs = this.calcPorciones(g, grasaFalt, 'grasa');
+        items.push(this.crearItem(g, porcs, 'grasas'));
+      }
     }
-  }
 
-  const grasaFalt = meta.grasa - cubierto.grasa;
-
-  if (grasaFalt > 3 && pool.grasa_base?.length > 0) {
-    const listaG = this.buscar(pool.grasa_base, p);
-    const g = this.elegir(listaG, seed + 12);
-
-    if (g) {
-      const porcs = this.limitarPorciones(g.codigo, grasaFalt / (g.grasa_g || 1));
-      items.push(this.crearItem(g, porcs, 'grasas'));
+    // 3. Avena u otro carbo si hay espacio
+    const carbFalt = meta.carb - cubierto.carb;
+    if (carbFalt > 10 && pool.carbo_base?.length > 0) {
+      const listaC = this.buscar(pool.carbo_base, p).filter(a => !items.find(i => i.codigo === a.codigo));
+      const c = this.elegir(listaC, seed + 11);
+      if (c) {
+        const porcs = this.calcPorciones(c, carbFalt, 'carb');
+        items.push(this.crearItem(c, porcs, 'carbohidratos'));
+      }
     }
-  }
 
-  return items;
-},
+    // 4. Proteína perecedera (solo si snack_perecedero = true)
+    if (p.snack_perecedero && pool.proteina_perecedera?.length > 0) {
+      const protFalt = meta.prot - cubierto.prot;
+      if (protFalt > 5) {
+        const listaP = this.buscar(pool.proteina_perecedera, p).filter(a => !items.find(i => i.codigo === a.codigo));
+        const prot = this.elegir(listaP, seed + 13);
+        if (prot) {
+          const porcs = this.calcPorciones(prot, protFalt, 'prot');
+          items.push(this.crearItem(prot, porcs, 'proteinas'));
+        }
+      }
+    }
 
-  // ─── AJUSTE FINAL (§7) ────────────────────────────────────
-  // Nunca modificar proteína. Solo ajustar carbos.
-  ajusteFinal(items, meta) {
-    const tot = this.totalesItems(items);
+    return items;
+  },
+
+  // ─── AJUSTE FINAL DE CARBOS (§7) ──────────────────────────
+  // NUNCA modifica proteína ni grasa
+  ajustarCarbos(items, meta) {
+    // Calcular kcal actuales desde macros (no de Supabase)
+    let tot = this.totalesItems(items);
     const kcalActual = (tot.prot * 4) + (tot.carb * 4) + (tot.grasa * 9);
     const diff = meta.kcal - kcalActual;
 
-    // Si faltan kcal → agregar carbos
-    if (diff > 40) {
-      const carbGFaltante = diff / 4; // kcal faltantes en gramos de carbo
-      const carbs = items.filter(i => i._cat === 'carbohidratos' && !i._alGusto);
-      if (carbs.length > 0) {
-        // Distribuir entre carbos existentes
-        const porExtraPorItem = carbGFaltante / carbs.length;
-        carbs.forEach(carb => {
-          const carbPorPorcion = carb.carbo_g || 1;
-          const porcsExtra = porExtraPorItem / carbPorPorcion;
-          const nuevaPorc = Math.min(carb._porciones + porcsExtra, this.maxPorc(carb.codigo));
-          const idx = items.indexOf(carb);
-          items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
-        });
-      }
-    }
+    if (Math.abs(diff) < 20) return items; // ya está en rango
 
-    // Si sobran kcal → reducir carbos
-    if (diff < -40) {
-      const carbGSobrante = Math.abs(diff) / 4;
-      const carbs = items.filter(i => i._cat === 'carbohidratos' && !i._alGusto);
-      if (carbs.length > 0) {
-        const porReducirPorItem = carbGSobrante / carbs.length;
-        carbs.forEach(carb => {
-          const carbPorPorcion = carb.carbo_g || 1;
-          const porcsReducir = porReducirPorItem / carbPorPorcion;
-          const nuevaPorc = Math.max(0.5, carb._porciones - porcsReducir);
-          const idx = items.indexOf(carb);
-          items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
-        });
-      }
+    const carbos = items.filter(i => i._cat === 'carbohidratos' && !i._alGusto);
+
+    if (diff > 20 && carbos.length > 0) {
+      // Faltan kcal → aumentar carbos
+      const gExtra = diff / 4; // gramos de carbo equivalentes
+      carbos.forEach(carb => {
+        const idx = items.indexOf(carb);
+        const carbPorPorc = carb.carbo_g || 1;
+        const porcsExtra = gExtra / carbos.length / carbPorPorc;
+        const nuevaPorc = Math.min(
+          carb._porciones + porcsExtra,
+          this.maxPorc(carb.codigo)
+        );
+        items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
+      });
+    } else if (diff < -20 && carbos.length > 0) {
+      // Sobran kcal → reducir carbos
+      const gReducir = Math.abs(diff) / 4;
+      carbos.forEach(carb => {
+        const idx = items.indexOf(carb);
+        const carbPorPorc = carb.carbo_g || 1;
+        const porcsReducir = gReducir / carbos.length / carbPorPorc;
+        const nuevaPorc = Math.max(0.5, carb._porciones - porcsReducir);
+        items[idx] = this.crearItem(carb, nuevaPorc, carb._cat);
+      });
     }
 
     return items;
@@ -455,12 +472,37 @@ if (tiempo === 'almuerzo' && p.modo === 'salvadoreno') {
   // HELPERS DE CÁLCULO
   // ═══════════════════════════════════════════════════════════
 
+  // Calcular porciones necesarias para cubrir un macro objetivo
+  calcPorciones(alimento, objetivo, tipo) {
+    const valPorPorc = tipo === 'prot'  ? (alimento.proteina_g || 0) :
+                       tipo === 'grasa' ? (alimento.grasa_g    || 0) :
+                       tipo === 'carb'  ? (alimento.carbo_g    || 0) : 1;
+    if (valPorPorc <= 0) return 1;
+    const porcs = objetivo / valPorPorc;
+    return this.limitarPorciones(alimento.codigo, porcs);
+  },
+
+  limitarPorciones(codigo, porcs) {
+    const max = this.maxPorc(codigo);
+    const redondeado = Math.round(porcs * 2) / 2; // redondeo a 0.5
+    return Math.max(0.5, Math.min(redondeado, max));
+  },
+
+  maxPorc(codigo) { return this.MAX_PORCIONES[codigo] || 3; },
+
+  // Crear ítem con macros calculados desde porciones (no de Supabase directamente)
   crearItem(alimento, porciones, cat, alGusto = false) {
     const base   = alimento.porcion_base_g || 100;
-    const porcs  = alGusto ? 1 : Math.round(porciones * 2) / 2; // redondeo a 0.5
+    const porcs  = alGusto ? 1 : Math.round(porciones * 2) / 2;
     const gramos = alGusto ? base : Math.round(porcs * base);
     const factor = gramos / base;
-    const maxP   = this.maxPorc(alimento.codigo);
+
+    // Macros calculados desde los datos base × factor (no redondeados aún)
+    const protR  = (alimento.proteina_g || 0) * factor;
+    const grasaR = (alimento.grasa_g    || 0) * factor;
+    const carbR  = (alimento.carbo_g    || 0) * factor;
+    // kcal calculada desde macros (regla fundamental)
+    const kcalR  = (protR * 4) + (carbR * 4) + (grasaR * 9);
 
     let _porcion = alGusto ? '1 porción al gusto' : `${gramos}g`;
     if (!alGusto && alimento.unidad_hogar && base > 0) {
@@ -473,78 +515,36 @@ if (tiempo === 'almuerzo' && p.modo === 'salvadoreno') {
 
     return {
       ...alimento,
-      _cat:      cat,
-      _gramos:   gramos,
+      _cat:          cat,
+      _gramos:       gramos,
       _porcion,
-      _porciones: porcs,
-      _maxPorciones: maxP,
-      _alGusto:  alGusto,
-      _kcal:     Math.round((alimento.kcal       || 0) * factor),
-      _prot:     Math.round((alimento.proteina_g || 0) * factor * 10) / 10,
-      _grasa:    Math.round((alimento.grasa_g    || 0) * factor * 10) / 10,
-      _carb:     Math.round((alimento.carbo_g    || 0) * factor * 10) / 10,
+      _porciones:    porcs,
+      _maxPorciones: this.maxPorc(alimento.codigo),
+      _alGusto:      alGusto,
+      // Macros redondeados solo para display
+      _kcal:  Math.round(kcalR),
+      _prot:  Math.round(protR  * 10) / 10,
+      _grasa: Math.round(grasaR * 10) / 10,
+      _carb:  Math.round(carbR  * 10) / 10,
     };
   },
 
-  sumarMacros(acumulado, item) {
+  sumar(acc, item) {
     return {
-      prot:  acumulado.prot  + (item._prot  || 0),
-      grasa: acumulado.grasa + (item._grasa || 0),
-      carb:  acumulado.carb  + (item._carb  || 0),
+      prot:  acc.prot  + (item._prot  || 0),
+      grasa: acc.grasa + (item._grasa || 0),
+      carb:  acc.carb  + (item._carb  || 0),
     };
   },
-
-  // No permitir 2 alimentos de la misma subcategoría en una comida
-  // Familias de alimentos — evita combinar alimentos de la misma familia
-  FAMILIAS: {
-    'cereales': 'almidones',    // arroz, avena, pasta, tortilla, quinoa
-    'panes': 'almidones',       // pan francés, pan integral
-    'tuberculos': 'almidones',  // papa, camote, yuca, plátano
-    'legumbres': 'legumbres',   // frijoles, lentejas, garbanzos, ejote
-  },
-
-  familiaDeAlimento(alimento) {
-    const sub = alimento.subcategoria;
-    if (!sub) return null;
-    return this.FAMILIAS[sub] || sub;
-  },
-
-  familiasEnUso(items) {
-    const familias = [];
-    items.forEach(i => {
-      const fam = this.familiaDeAlimento(i);
-      if (fam && !familias.includes(fam)) familias.push(fam);
-      // También registrar subcategoría exacta para evitar duplicados exactos
-      if (i.subcategoria && !familias.includes(i.subcategoria)) familias.push(i.subcategoria);
-    });
-    return familias;
-  },
-
-  filtrarPorSubcategoria(lista, items) {
-    const usadas = this.familiasEnUso(items);
-    return lista.filter(a => {
-      if (!a.subcategoria) return true;
-      const familia = this.familiaDeAlimento(a);
-      // Bloquear si la familia ya está usada
-      if (familia && usadas.includes(familia)) return false;
-      // Bloquear si la subcategoría exacta ya está
-      if (usadas.includes(a.subcategoria)) return false;
-      return true;
-    });
-  },
-
-  limitarPorciones(codigo, porcsCalculadas) {
-    const max = this.maxPorc(codigo);
-    return Math.max(0.5, Math.min(Math.round(porcsCalculadas * 2) / 2, max));
-  },
-
-  maxPorc(codigo) { return this.MAX_PORCIONES[codigo] || 3; },
 
   totalesItems(items) {
-    return items.reduce((a, i) => ({
-      prot: a.prot + (i._prot || 0), grasa: a.grasa + (i._grasa || 0),
-      carb: a.carb + (i._carb || 0), kcal: a.kcal + (i._kcal || 0),
-    }), { kcal:0, prot:0, grasa:0, carb:0 });
+    const t = items.reduce((a, i) => ({
+      prot:  a.prot  + (i._prot  || 0),
+      grasa: a.grasa + (i._grasa || 0),
+      carb:  a.carb  + (i._carb  || 0),
+    }), { prot: 0, grasa: 0, carb: 0 });
+    // kcal siempre calculada desde macros
+    return { ...t, kcal: Math.round((t.prot * 4) + (t.carb * 4) + (t.grasa * 9)) };
   },
 
   totalesComida(comida) { return this.totalesItems(comida.items); },
@@ -552,34 +552,20 @@ if (tiempo === 'almuerzo' && p.modo === 'salvadoreno') {
   totalesDia(dia) {
     return dia.reduce((a, c) => {
       const t = this.totalesComida(c);
-      return { kcal:a.kcal+t.kcal, prot:a.prot+t.prot, grasa:a.grasa+t.grasa, carb:a.carb+t.carb };
-    }, { kcal:0, prot:0, grasa:0, carb:0 });
+      return {
+        prot:  a.prot  + t.prot,
+        grasa: a.grasa + t.grasa,
+        carb:  a.carb  + t.carb,
+        kcal:  a.kcal  + t.kcal,
+      };
+    }, { prot: 0, grasa: 0, carb: 0, kcal: 0 });
   },
-tipoProteina(alimento) {
-  if (!alimento?.nombre) return null;
 
-  const n = alimento.nombre.toLowerCase();
-
-  if (n.includes('pollo') || n.includes('pechuga') || n.includes('muslo')) return 'pollo';
-  if (n.includes('res') || n.includes('molida')) return 'res';
-  if (n.includes('cerdo')) return 'cerdo';
-  if (n.includes('atun') || n.includes('tilapia')) return 'pescado';
-  if (n.includes('camaron')) return 'mariscos';
-  if (n.includes('huevo') || n.includes('clara')) return 'huevo';
-  if (n.includes('queso') || n.includes('yogur') || n.includes('requeson')) return 'lacteo';
-
-  return null;
-},
+  // ─── Helpers de selección ─────────────────────────────────
   buscar(codigos, p) {
     if (!codigos || codigos.length === 0) return [];
     let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c)).filter(Boolean);
     return this.filtrar(lista, p);
-  },
-
-  // Verificar si un alimento tiene subcategoría ya usada en los items actuales
-  subcategoriaUsada(items, alimento) {
-    if (!alimento.subcategoria) return false;
-    return items.some(i => i.subcategoria === alimento.subcategoria);
   },
 
   filtrar(lista, p) {
@@ -596,10 +582,21 @@ tipoProteina(alimento) {
     return lista[Math.abs(Math.round(seed)) % lista.length];
   },
 
+  sonIncompatibles(tipo1, tipo2) {
+    if (!tipo1 || !tipo2) return false;
+    return this.INCOMPATIBLES.some(([a, b]) =>
+      (a === tipo1 && b === tipo2) || (a === tipo2 && b === tipo1)
+    );
+  },
+
   labelTiempo(t) {
-    return { desayuno:'🌅 Desayuno', snack1:'🍎 Snack mañana',
-             almuerzo:'🍽️ Almuerzo', snack2:'🌿 Snack tarde',
-             cena:'🌙 Cena' }[t] || t;
+    return {
+      desayuno: '🌅 Desayuno',
+      snack1:   '🍎 Snack mañana',
+      almuerzo: '🍽️ Almuerzo',
+      snack2:   '🌿 Snack tarde',
+      cena:     '🌙 Cena',
+    }[t] || t;
   },
 
   // ═══════════════════════════════════════════════════════════
@@ -635,62 +632,38 @@ tipoProteina(alimento) {
     this.generar();
   },
 
-renderPrefs() {
-  const p = this.preferencias;
-  const modos = { 
-    salvadoreno:'🇸🇻 Salvadoreño', 
-    fitness:'💪 Fitness', 
-    economico:'💰 Económico' 
-  };
-
-  return `
-  <div class="card mb-3">
-    <div style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" id="tog-prefs">
-      <span style="font-weight:600;">⚙️ Configurar mi menú</span>
-      <span id="arr-prefs">▼</span>
-    </div>
-
-    <div id="prefs-body" style="display:none;margin-top:14px;">
-      <div style="display:flex;flex-direction:column;gap:14px;">
-
-        <div>
-          <label class="pref-label">🍴 Comidas al día</label>
-          <div class="btn-group-pref">
-            ${[3,4,5].map(n=>`<button class="btn-pref ${p.num_comidas===n?'activo':''}" data-pref="num_comidas" data-val="${n}">${n}</button>`).join('')}
-          </div>
-        </div>
-
-        <div>
-          <label class="pref-label">🌟 Estilo</label>
-          <div class="btn-group-pref">
-            ${Object.entries(modos).map(([k,v])=>`<button class="btn-pref ${p.modo===k?'activo':''}" data-pref="modo" data-val="${k}">${v}</button>`).join('')}
-          </div>
-        </div>
-
-        <div>
-          <label class="pref-label">🚫 Restricciones</label>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            ${['sin_lacteos:🥛 Sin lácteos','sin_gluten:🌾 Sin gluten','sin_cerdo:🐷 Sin cerdo','vegetariano:🥦 Vegetariano']
-              .map(s => { 
-                const [k,l] = s.split(':'); 
-                return `<label class="check-pref"><input type="checkbox" data-restr="${k}" ${(p.restricciones||[]).includes(k)?'checked':''}><span>${l}</span></label>`; 
-              }).join('')}
-          </div>
-        </div>
-
-      <label class="check-pref">
-  <input type="checkbox" data-check="snack_perecedero" ${p.snack_perecedero?'checked':''}>
-  <span>🧊 Tengo refrigeración (puedo llevar yogurt, queso, etc.)</span>
-</label>
-
-            <button class="btn btn-primary mt-3" id="btn-aplicar" style="width:100%;">
-          ✅ Aplicar y generar menú
-        </button>
-
+  renderPrefs() {
+    const p = this.preferencias;
+    const modos = { salvadoreno:'🇸🇻 Salvadoreño', fitness:'💪 Fitness', economico:'💰 Económico' };
+    return `
+    <div class="card mb-3">
+      <div style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" id="tog-prefs">
+        <span style="font-weight:600;">⚙️ Configurar mi menú</span>
+        <span id="arr-prefs" style="transition:transform 0.25s;">▼</span>
       </div>
-    </div>
-  </div>`;
-},
+      <div id="prefs-body" style="display:none;margin-top:14px;">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div><label class="pref-label">🍴 Comidas al día</label>
+            <div class="btn-group-pref">${[3,4,5].map(n=>`<button class="btn-pref ${p.num_comidas===n?'activo':''}" data-pref="num_comidas" data-val="${n}">${n} comidas</button>`).join('')}</div>
+          </div>
+          <div><label class="pref-label">🌟 Estilo</label>
+            <div class="btn-group-pref">${Object.entries(modos).map(([k,v])=>`<button class="btn-pref ${p.modo===k?'activo':''}" data-pref="modo" data-val="${k}">${v}</button>`).join('')}</div>
+          </div>
+          <div><label class="pref-label">🚫 Restricciones</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              ${['sin_lacteos:🥛 Sin lácteos','sin_gluten:🌾 Sin gluten','sin_cerdo:🐷 Sin cerdo','vegetariano:🥦 Vegetariano']
+                .map(s => { const [k,l]=s.split(':'); return `<label class="check-pref"><input type="checkbox" data-restr="${k}" ${(p.restricciones||[]).includes(k)?'checked':''}><span>${l}</span></label>`; }).join('')}
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <label class="check-pref"><input type="checkbox" data-check="ayuno" ${p.ayuno?'checked':''}><span>⏱️ Ayuno intermitente</span></label>
+            <label class="check-pref"><input type="checkbox" data-check="snack_perecedero" ${p.snack_perecedero?'checked':''}><span>🧊 Snacks con refrigeración</span></label>
+          </div>
+        </div>
+        <button class="btn btn-primary mt-3" id="btn-aplicar" style="width:100%;">✅ Aplicar y generar menú</button>
+      </div>
+    </div>`;
+  },
 
   bindEventos() {
     document.getElementById('tog-prefs')?.addEventListener('click', () => {
@@ -716,7 +689,7 @@ renderPrefs() {
         if (!this.preferencias.restricciones) this.preferencias.restricciones = [];
         const k = c.dataset.restr;
         if (c.checked) { if (!this.preferencias.restricciones.includes(k)) this.preferencias.restricciones.push(k); }
-        else { this.preferencias.restricciones = this.preferencias.restricciones.filter(r=>r!==k); }
+        else { this.preferencias.restricciones = this.preferencias.restricciones.filter(r => r !== k); }
       });
     });
     document.getElementById('btn-aplicar')?.addEventListener('click', async () => {
@@ -754,43 +727,36 @@ renderPrefs() {
     const { diaBase, semana, macrosDia } = this.menuGenerado;
     cont.innerHTML = (this.vistaActiva === 'diario'
       ? this.renderDiario(diaBase, macrosDia)
-      : this.renderSemanal(semana, macrosDia)) + this.renderBotonesInferiores();
+      : this.renderSemanal(semana, macrosDia)) + this.renderBotones();
     document.getElementById('btn-regen')?.addEventListener('click', () => this.generar());
   },
 
   // ─── RENDER DIARIO ────────────────────────────────────────
   renderDiario(dia, obj) {
     const tot = this.totalesDia(dia);
-    const pctK = Math.min(Math.round((tot.kcal / obj.kcal) * 100), 120);
-    const pctP = Math.round((tot.prot  / obj.prot)  * 100);
-    const pctG = Math.round((tot.grasa / obj.grasa) * 100);
-    const pctC = Math.round((tot.carb  / obj.carb)  * 100);
-    const colorK = pctK > 105 ? '#ef4444' : pctK >= 85 ? '#10b981' : '#f59e0b';
-
     return `
-    <div class="card mb-3" id="resumen-dia" style="background:var(--color-superficie-hover);">
+    <div class="card mb-3" style="background:var(--color-superficie-hover);">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div><div style="font-weight:700;">📊 Resumen del día</div>
-          <div style="font-size:0.8rem;color:var(--color-texto-secundario);" id="r-sub">${dia.length} comidas · ~${window.ui.formatearNumero(tot.kcal)} kcal</div>
+        <div>
+          <div style="font-weight:700;">📊 Resumen del día</div>
+          <div style="font-size:0.8rem;color:var(--color-texto-secundario);">${dia.length} comidas · ~${window.ui.formatearNumero(tot.kcal)} kcal</div>
         </div>
       </div>
-      <!-- Barras por macro -->
-      <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
-        ${this.barraMacro('Calorías', tot.kcal, obj.kcal, 'kcal', colorK)}
-        ${this.barraMacro('Proteína', Math.round(tot.prot), obj.prot, 'g', pctP>=90?'#ef4444':'#f59e0b')}
-        ${this.barraMacro('Grasa',    Math.round(tot.grasa), obj.grasa, 'g', pctG>=85?'#f59e0b':'#f59e0b')}
-        ${this.barraMacro('Carbos',   Math.round(tot.carb), obj.carb, 'g', pctC<=110?'#10b981':'#ef4444')}
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:7px;">
+        ${this.barraMacro('Calorías', tot.kcal,            obj.kcal,  'kcal')}
+        ${this.barraMacro('Proteína', Math.round(tot.prot), obj.prot,  'g'  )}
+        ${this.barraMacro('Grasa',    Math.round(tot.grasa),obj.grasa, 'g'  )}
+        ${this.barraMacro('Carbos',   Math.round(tot.carb), obj.carb,  'g'  )}
       </div>
     </div>
-    <div id="warning-dia"></div>
     ${dia.map(c => this.renderComida(c, 0)).join('')}`;
   },
 
-  barraMacro(label, actual, objetivo, unidad, color) {
-    const pct = Math.min(Math.round((actual / objetivo) * 100), 120);
-    const enRango = pct >= 85 && pct <= 110;
-    const colorFinal = enRango ? '#10b981' : color;
-    const icon = enRango ? '✅' : (pct < 85 ? '⚠️' : '🔴');
+  barraMacro(label, actual, objetivo, unidad) {
+    const pct     = Math.min(Math.round((actual / objetivo) * 100), 120);
+    const enRango = pct >= 90 && pct <= 110;
+    const color   = enRango ? '#10b981' : pct < 90 ? '#f59e0b' : '#ef4444';
+    const icon    = enRango ? '✅' : pct < 90 ? '⚠️' : '🔴';
     return `
     <div>
       <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:2px;">
@@ -798,7 +764,7 @@ renderPrefs() {
         <span style="color:var(--color-texto-secundario);">${actual}${unidad} / ${objetivo}${unidad} (${pct}%)</span>
       </div>
       <div style="height:6px;background:var(--color-borde);border-radius:99px;overflow:hidden;">
-        <div style="height:100%;width:${Math.min(pct,100)}%;background:${colorFinal};border-radius:99px;"></div>
+        <div style="height:100%;width:${Math.min(pct,100)}%;background:${color};border-radius:99px;"></div>
       </div>
     </div>`;
   },
@@ -807,11 +773,14 @@ renderPrefs() {
     const dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
     return semana.map((dia, i) => {
       const tot = this.totalesDia(dia);
-      return `<div class="card mb-2">
+      const pct = Math.round((tot.kcal / obj.kcal) * 100);
+      const color = pct >= 90 && pct <= 110 ? '#10b981' : '#f59e0b';
+      return `
+      <div class="card mb-2">
         <div style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
              onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'">
           <span style="font-weight:600;">📅 ${dias[i]}</span>
-          <span style="font-size:0.78rem;color:var(--color-texto-secundario);">~${window.ui.formatearNumero(tot.kcal)} kcal · P:${Math.round(tot.prot)}g</span>
+          <span style="font-size:0.78rem;color:${color};font-weight:600;">~${window.ui.formatearNumero(tot.kcal)} kcal (${pct}%)</span>
         </div>
         <div style="display:none;margin-top:12px;">${dia.map(c => this.renderComida(c, i+1)).join('')}</div>
       </div>`;
@@ -823,7 +792,7 @@ renderPrefs() {
     const tot = this.totalesComida(comida);
     const key = `${diaIdx}-${comida.tiempo}`;
     const pctP = comida.meta.prot > 0 ? Math.round((tot.prot / comida.meta.prot) * 100) : 0;
-    const overProt = pctP < 80;
+    const warn = pctP < 80 ? `<div class="warn-comida">⚠️ Proteína baja (${Math.round(tot.prot)}g / meta ${Math.round(comida.meta.prot)}g)</div>` : '';
 
     return `
     <div class="card mb-2" style="padding:14px;" id="cc-${key}">
@@ -836,7 +805,7 @@ renderPrefs() {
           <span style="color:#10b981;">C:${Math.round(tot.carb)}g</span>
         </div>
       </div>
-      ${overProt ? `<div class="warn-comida">⚠️ Proteína baja en esta comida (meta: ${comida.meta.prot}g)</div>` : ''}
+      ${warn}
       <div style="display:flex;flex-direction:column;gap:6px;" id="its-${key}">
         ${comida.items.map((item, i) => this.renderItem(item, key, i, comida.tiempo)).join('')}
       </div>
@@ -847,16 +816,19 @@ renderPrefs() {
     </div>`;
   },
 
-  // ─── RENDER ITEM ──────────────────────────────────────────
+  // ─── RENDER ÍTEM ──────────────────────────────────────────
   renderItem(item, key, idx, tiempo) {
     const S = {
-      proteinas:{bg:'#fee2e2',bd:'#991b1b',em:'🥩'}, carbohidratos:{bg:'#d1fae5',bd:'#065f46',em:'🍞'},
-      grasas:{bg:'#fef9c3',bd:'#92400e',em:'🥑'}, frutas:{bg:'#ede9fe',bd:'#5b21b6',em:'🍎'},
-      vegetales:{bg:'#dcfce7',bd:'#166534',em:'🥬'}, combinados:{bg:'#e0f2fe',bd:'#0c4a6e',em:'🫓'},
+      proteinas:     { bg:'#fee2e2', bd:'#991b1b', em:'🥩' },
+      carbohidratos: { bg:'#d1fae5', bd:'#065f46', em:'🍞' },
+      grasas:        { bg:'#fef9c3', bd:'#92400e', em:'🥑' },
+      frutas:        { bg:'#ede9fe', bd:'#5b21b6', em:'🍎' },
+      vegetales:     { bg:'#dcfce7', bd:'#166534', em:'🥬' },
+      combinados:    { bg:'#e0f2fe', bd:'#0c4a6e', em:'🫓' },
     };
     const s   = S[item._cat] || { bg:'#f1f5f9', bd:'#475569', em:'🍽️' };
     const uid = `${key}-${idx}`;
-    const nom = (item.nombre||'').replace(/'/g,"\\'");
+    const nom = (item.nombre || '').replace(/'/g, "\\'");
 
     const btnReceta = item.codigo && !item._alGusto ? `
       <button onclick="event.stopPropagation();window.recetas?.mostrarPanelRecetas('${item.codigo}','${nom}','${uid}')"
@@ -864,7 +836,7 @@ renderPrefs() {
 
     const btnElim = item._manual ? `
       <button onclick="event.stopPropagation();window.dieta.eliminarItem('${key}',${idx})"
-        style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:#ef4444;">✕</button>` : '';
+        style="background:none;border:none;cursor:pointer;font-size:0.85rem;color:#ef4444;padding:0 2px;">✕</button>` : '';
 
     const btnPM = !item._alGusto ? `
       <div style="display:flex;align-items:center;gap:3px;" onclick="event.stopPropagation()">
@@ -895,7 +867,7 @@ renderPrefs() {
   },
 
   // ═══════════════════════════════════════════════════════════
-  // INTERACCIONES: +/-, SUSTITUIR, AGREGAR, ELIMINAR
+  // INTERACCIONES
   // ═══════════════════════════════════════════════════════════
 
   ajustarPorc(key, idx, delta) {
@@ -904,22 +876,17 @@ renderPrefs() {
     const item = comida.items[idx];
     if (!item || item._alGusto) return;
 
-    const maxP = item._maxPorciones || 3;
-    const nueva = Math.max(0.5, Math.min((item._porciones||1) + delta * 0.5, maxP));
-    const actualizado = this.crearItem(item, nueva, item._cat);
-    comida.items[idx] = actualizado;
-
-    const uid = `${key}-${idx}`;
-    const el = id => document.getElementById(id);
-    if (el(`pt-${uid}`)) el(`pt-${uid}`).textContent = actualizado._porcion;
-    if (el(`kc-${uid}`)) el(`kc-${uid}`).textContent = `${actualizado._kcal} kcal`;
-    if (el(`pc-${uid}`)) el(`pc-${uid}`).textContent = actualizado._porciones;
-
-    // Warning si supera máximo
-    if (nueva >= maxP) {
-      window.ui?.mostrarAlerta(`⚠️ ${item.nombre}: máximo ${maxP} porciones`, 'warning', 2000);
+    const maxP  = item._maxPorciones || 3;
+    const nueva = Math.max(0.5, Math.min((item._porciones || 1) + delta * 0.5, maxP));
+    if (nueva >= maxP && delta > 0) {
+      window.ui?.mostrarAlerta(`⚠️ Máximo ${maxP} porciones de ${item.nombre}`, 'warning', 2500);
     }
-
+    comida.items[idx] = this.crearItem(item, nueva, item._cat);
+    const uid = `${key}-${idx}`;
+    const el  = id => document.getElementById(id);
+    if (el(`pt-${uid}`)) el(`pt-${uid}`).textContent = comida.items[idx]._porcion;
+    if (el(`kc-${uid}`)) el(`kc-${uid}`).textContent = `${comida.items[idx]._kcal} kcal`;
+    if (el(`pc-${uid}`)) el(`pc-${uid}`).textContent = comida.items[idx]._porciones;
     this.actualizarUI(key, comida, diaIdx);
   },
 
@@ -929,10 +896,7 @@ renderPrefs() {
     const panel = document.getElementById(`sp-${uid}`);
     if (!panel) return;
 
-    const pool  = this.MENU_POOL[tiempo];
-    if (!pool) return;
-
-    // Buscar alimentos del mismo rol en ese tiempo
+    const pool = this.MENU_POOL[tiempo] || {};
     let codigos = [];
     if (cat === 'proteinas')      codigos = [...(pool.proteina_base||[]), ...(pool.proteina_mixta||[])];
     else if (cat === 'carbohidratos') codigos = pool.carbo_base || [];
@@ -942,29 +906,23 @@ renderPrefs() {
 
     const { comida } = this.getComida(key);
     const actual = comida?.items[idx];
-    let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c)).filter(Boolean).filter(a => a.codigo !== actual?.codigo);
+    let lista = codigos.map(c => this.alimentos.find(a => a.codigo === c))
+      .filter(Boolean).filter(a => a.codigo !== actual?.codigo);
     lista = this.filtrar(lista, this.preferencias);
-    // Ordenar: primero misma subcategoría del ítem actual, luego el resto
-    const subcatActual = actual?.subcategoria;
-    if (subcatActual) {
-      lista.sort((a, b) => {
-        const aMatch = a.subcategoria === subcatActual ? 0 : 1;
-        const bMatch = b.subcategoria === subcatActual ? 0 : 1;
-        return aMatch - bMatch;
-      });
-    }
 
-    const colores = { proteinas:'#991b1b', carbohidratos:'#065f46', grasas:'#92400e', frutas:'#5b21b6', vegetales:'#166534' };
+    const cols = { proteinas:'#991b1b', carbohidratos:'#065f46', grasas:'#92400e', frutas:'#5b21b6', vegetales:'#166534' };
     panel.innerHTML = lista.length === 0
       ? `<div style="padding:8px 12px;font-size:0.82rem;color:var(--color-texto-secundario);">Sin alternativas para este tiempo.</div>`
       : `<div style="background:var(--color-superficie);border:1px solid var(--color-borde);border-radius:0 0 8px 8px;overflow:hidden;">
-          <div style="padding:5px 12px;background:var(--color-superficie-hover);font-size:0.72rem;font-weight:700;color:var(--color-texto-secundario);text-transform:uppercase;">🔄 Opciones de ${this.labelTiempo(tiempo)}</div>
-          ${lista.slice(0,12).map(a => `
+          <div style="padding:5px 12px;background:var(--color-superficie-hover);font-size:0.72rem;font-weight:700;color:var(--color-texto-secundario);text-transform:uppercase;">🔄 Opciones del mismo tiempo</div>
+          ${lista.slice(0,8).map(a => `
           <div onclick="window.dieta.hacerSust('${key}',${idx},'${a.codigo}','${cat}')"
                style="padding:8px 12px;border-bottom:1px solid var(--color-borde);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
-            <div><div style="font-weight:600;font-size:0.85rem;">${a.nombre}</div>
-              <div style="font-size:0.72rem;color:var(--color-texto-secundario);">P:${a.proteina_g}g G:${a.grasa_g}g C:${a.carbo_g}g</div></div>
-            <span style="font-size:0.76rem;color:${colores[cat]||'#475569'};font-weight:600;">${a.kcal} kcal</span>
+            <div>
+              <div style="font-weight:600;font-size:0.85rem;">${a.nombre}</div>
+              <div style="font-size:0.72rem;color:var(--color-texto-secundario);">P:${a.proteina_g}g G:${a.grasa_g}g C:${a.carbo_g}g</div>
+            </div>
+            <span style="font-size:0.76rem;color:${cols[cat]||'#475569'};font-weight:600;">${a.kcal} kcal/porc</span>
           </div>`).join('')}
         </div>`;
     panel.style.display = 'block';
@@ -979,7 +937,8 @@ renderPrefs() {
     comida.items[idx] = this.crearItem(nuevo, porcsAnterior, cat);
     this.rerenderItems(key, comida);
     this.actualizarUI(key, comida, diaIdx);
-    document.getElementById(`sp-${key}-${idx}`)?.style && (document.getElementById(`sp-${key}-${idx}`).style.display = 'none');
+    const sp = document.getElementById(`sp-${key}-${idx}`);
+    if (sp) sp.style.display = 'none';
   },
 
   abrirAgregar(key, tiempo, diaIdx) {
@@ -993,8 +952,10 @@ renderPrefs() {
         <div style="padding:6px 12px;background:var(--color-superficie-hover);font-size:0.72rem;font-weight:700;color:var(--color-texto-secundario);text-transform:uppercase;">
           ＋ Opciones de ${this.labelTiempo(tiempo)}
         </div>
-        <div style="padding:8px 12px;"><input type="text" class="form-input" placeholder="🔍 Buscar..."
-          style="font-size:0.85rem;" oninput="window.dieta.filtAgregar(this.value,'${key}','${tiempo}')"></div>
+        <div style="padding:8px 12px;">
+          <input type="text" class="form-input" placeholder="🔍 Buscar..." style="font-size:0.85rem;"
+            oninput="window.dieta.filtAgregar(this.value,'${key}','${tiempo}')">
+        </div>
         <div id="la-${key}" style="max-height:220px;overflow-y:auto;"></div>
       </div>`;
     this.filtAgregar('', key, tiempo);
@@ -1005,19 +966,29 @@ renderPrefs() {
     if (!lista) return;
     const pool = this.MENU_POOL[tiempo] || {};
     let permitidos = [];
+
+    const agregarAlimento = (codigo, catDisplay) => {
+      const a = this.alimentos.find(x => x.codigo === codigo);
+      if (a && !permitidos.find(p => p.codigo === a.codigo)) {
+        permitidos.push({ ...a, _cat: catDisplay });
+      }
+    };
+
     Object.entries(pool).forEach(([rol, codigos]) => {
-      const cat = rol.startsWith('proteina') ? 'proteinas' : rol === 'carbo_base' ? 'carbohidratos' : rol === 'grasa_base' ? 'grasas' : rol;
+      const catDisplay = rol.includes('proteina') ? 'proteinas' :
+                         rol === 'carbo_base'    ? 'carbohidratos' :
+                         rol === 'grasa_base'    ? 'grasas' :
+                         rol === 'frutas'        ? 'frutas' :
+                         rol === 'vegetales'     ? 'vegetales' : rol;
       if (codigos === 'todas') {
-        this.alimentos.filter(a => a.categoria === cat).forEach(a => {
-          if (!permitidos.find(p => p.codigo === a.codigo)) permitidos.push({ ...a, _cat: cat });
+        this.alimentos.filter(a => a.categoria === catDisplay).forEach(a => {
+          if (!permitidos.find(p => p.codigo === a.codigo)) permitidos.push({ ...a, _cat: catDisplay });
         });
       } else if (Array.isArray(codigos)) {
-        codigos.forEach(c => {
-          const a = this.alimentos.find(x => x.codigo === c);
-          if (a && !permitidos.find(p => p.codigo === a.codigo)) permitidos.push({ ...a, _cat: cat === 'proteinas' || cat === 'proteina_base' || cat === 'proteina_mixta' ? 'proteinas' : cat });
-        });
+        codigos.forEach(c => agregarAlimento(c, catDisplay));
       }
     });
+
     permitidos = this.filtrar(permitidos, this.preferencias);
     if (term) permitidos = permitidos.filter(a => a.nombre.toLowerCase().includes(term.toLowerCase()));
 
@@ -1025,12 +996,16 @@ renderPrefs() {
       lista.innerHTML = `<div style="padding:12px;font-size:0.82rem;text-align:center;color:var(--color-texto-secundario);">Sin resultados</div>`;
       return;
     }
-    lista.innerHTML = permitidos.slice(0,20).map(a => `
+
+    const cols = { proteinas:'#991b1b', carbohidratos:'#065f46', grasas:'#92400e', frutas:'#5b21b6', vegetales:'#166534' };
+    lista.innerHTML = permitidos.slice(0, 20).map(a => `
       <div onclick="window.dieta.selAgregar('${key}','${a.codigo}','${a._cat||a.categoria}')"
            style="padding:8px 12px;border-bottom:1px solid var(--color-borde);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
-        <div><div style="font-weight:600;font-size:0.85rem;">${a.nombre}</div>
-          <div style="font-size:0.72rem;color:var(--color-texto-secundario);">P:${a.proteina_g}g G:${a.grasa_g}g C:${a.carbo_g}g</div></div>
-        <span style="font-size:0.76rem;font-weight:600;">${a.kcal} kcal</span>
+        <div>
+          <div style="font-weight:600;font-size:0.85rem;">${a.nombre}</div>
+          <div style="font-size:0.72rem;color:var(--color-texto-secundario);">P:${a.proteina_g}g G:${a.grasa_g}g C:${a.carbo_g}g</div>
+        </div>
+        <span style="font-size:0.76rem;font-weight:600;color:${cols[a._cat]||'#475569'};">${a.kcal} kcal</span>
       </div>`).join('');
   },
 
@@ -1040,8 +1015,8 @@ renderPrefs() {
     const lista = document.getElementById(`la-${key}`);
     lista.innerHTML = `
       <div style="padding:12px;">
-        <div style="font-weight:600;margin-bottom:6px;">${a.nombre}</div>
-        <div style="font-size:0.78rem;color:var(--color-texto-secundario);margin-bottom:10px;">${a.kcal} kcal · P:${a.proteina_g}g G:${a.grasa_g}g C:${a.carbo_g}g</div>
+        <div style="font-weight:600;margin-bottom:4px;">${a.nombre}</div>
+        <div style="font-size:0.78rem;color:var(--color-texto-secundario);margin-bottom:10px;">${a.kcal} kcal/porc · P:${a.proteina_g}g G:${a.grasa_g}g C:${a.carbo_g}g</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <label style="font-size:0.78rem;font-weight:600;">Porciones:</label>
           <input type="number" id="ca-${key}" value="1" min="0.5" max="${this.maxPorc(codigo)}" step="0.5"
@@ -1065,7 +1040,8 @@ renderPrefs() {
     comida.items.push(item);
     this.rerenderItems(key, comida);
     this.actualizarUI(key, comida, diaIdx);
-    document.getElementById(`pa-${key}`).style.display = 'none';
+    const pa = document.getElementById(`pa-${key}`);
+    if (pa) pa.style.display = 'none';
   },
 
   eliminarItem(key, idx) {
@@ -1076,7 +1052,7 @@ renderPrefs() {
     this.actualizarUI(key, comida, diaIdx);
   },
 
-  // ─── Helpers de UI ────────────────────────────────────────
+  // ─── Helpers UI ───────────────────────────────────────────
   rerenderItems(key, comida) {
     const cont = document.getElementById(`its-${key}`);
     if (cont) cont.innerHTML = comida.items.map((item, i) => this.renderItem(item, key, i, comida.tiempo)).join('');
@@ -1084,38 +1060,24 @@ renderPrefs() {
 
   actualizarUI(key, comida, diaIdx) {
     const tot = this.totalesComida(comida);
-    const el = id => document.getElementById(id);
-    const tc = el(`tc-${key}`);
+    const tc  = document.getElementById(`tc-${key}`);
     if (tc) tc.innerHTML = `
       <span>${tot.kcal} kcal</span>
       <span style="color:#ef4444;">P:${Math.round(tot.prot)}g</span>
       <span style="color:#f59e0b;">G:${Math.round(tot.grasa)}g</span>
       <span style="color:#10b981;">C:${Math.round(tot.carb)}g</span>`;
-
-    if (diaIdx === 0) this.actualizarResumen();
-  },
-
-  actualizarResumen() {
-    const dia = this.menuGenerado?.diaBase;
-    if (!dia) return;
-    const obj = this.menuGenerado.macrosDia;
-    const tot = this.totalesDia(dia);
-    const el = id => document.getElementById(id);
-    if (el('r-sub')) el('r-sub').textContent = `${dia.length} comidas · ~${window.ui.formatearNumero(tot.kcal)} kcal`;
-    // Las barras se actualizarían reconstruyendo el resumen completo
-    // Por simplicidad re-renderizo todo
-    this.renderMenu();
+    if (diaIdx === 0) this.renderMenu();
   },
 
   getComida(key) {
     const p = key.split('-');
     const diaIdx = parseInt(p[0]);
     const tiempo = p.slice(1).join('-');
-    const dia = diaIdx === 0 ? this.menuGenerado?.diaBase : this.menuGenerado?.semana?.[diaIdx-1];
+    const dia    = diaIdx === 0 ? this.menuGenerado?.diaBase : this.menuGenerado?.semana?.[diaIdx - 1];
     return { diaIdx, tiempo, comida: dia?.find(c => c.tiempo === tiempo) };
   },
 
-  renderBotonesInferiores() {
+  renderBotones() {
     return `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
       <button class="btn btn-outline" id="btn-regen">🔄 Regenerar menú</button>
@@ -1127,7 +1089,6 @@ renderPrefs() {
     </div>`;
   },
 
-  // ─── ESTILOS ──────────────────────────────────────────────
   estilos() {
     return `<style id="css-dieta">
       .btn-vista{padding:8px 18px;border-radius:999px;border:1.5px solid var(--color-borde);background:var(--color-superficie);color:var(--color-texto-secundario);font-size:0.85rem;font-weight:500;cursor:pointer;font-family:inherit;}
