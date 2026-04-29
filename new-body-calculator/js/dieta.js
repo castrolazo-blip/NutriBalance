@@ -310,7 +310,7 @@ window.dieta = {
       const grasa  = this.elegir(listaG, seed + 3);
       if (grasa) {
         // Usar máximo 80% del faltante para no exceder
-        const porcs = this.calcPorciones(grasa, grasaFalt * 0.80, 'grasa');
+        const porcs = this.calcPorciones(grasa, grasaFalt * 0.95, 'grasa');
         const item  = this.crearItem(grasa, porcs, 'grasas');
         items.push(item);
         cubierto = this.sumar(cubierto, item);
