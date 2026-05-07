@@ -183,64 +183,111 @@ window.dieta = {
   PLATOS_BASE: {
     desayuno: [
       { id:'D01', nombre:'Huevos con tortilla y aguacate', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0003',rol:'prot',min:1,max:3}, {c:'A-0023',rol:'carb',min:1,max:4}, {c:'A-0036',rol:'grasa',min:0.5,max:2} ]},
-      { id:'D02', nombre:'Huevos con pan y queso', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0003',rol:'prot',min:1,max:3}, {c:'A-0024',rol:'carb',min:1,max:4}, {c:'A-0012',rol:'prot2',min:1,max:2} ]},
-      { id:'D03', nombre:'Yogurt con fruta y avena', modos:['fitness','salvadoreno'],
-        comp:[ {c:'A-0014',rol:'prot',min:1,max:3}, {c:'A-0026',rol:'carb',min:0.5,max:2}, {rol:'fruta',min:1,max:1} ]},
+        comp:[ {c:'A-0003',rol:'prot',min:2,max:4}, {c:'A-0023',rol:'carb',min:2,max:4}, {c:'A-0036',rol:'grasa',min:0.5,max:2} ]},
+      { id:'D02', nombre:'Huevos con pan y queso fresco', modos:['salvadoreno','economico'],
+        comp:[ {c:'A-0003',rol:'prot',min:2,max:4}, {c:'A-0024',rol:'carb',min:1,max:3}, {c:'A-0012',rol:'prot2',min:1,max:2} ]},
+      { id:'D03', nombre:'Yogurt con avena y fruta', modos:['fitness','salvadoreno'],
+        comp:[ {c:'A-0014',rol:'prot',min:2,max:4}, {c:'A-0026',rol:'carb',min:1,max:3}, {rol:'fruta',min:1,max:1} ]},
       { id:'D04', nombre:'Claras con tortilla y frijoles', modos:['fitness','economico'],
-        comp:[ {c:'A-0004',rol:'prot',min:2,max:6}, {c:'A-0023',rol:'carb',min:1,max:4}, {c:'A-0016',rol:'prot2',min:1,max:2} ]},
-      { id:'D05', nombre:'Pan con huevo y jamón', modos:['salvadoreno','fitness'],
-        comp:[ {c:'A-0003',rol:'prot',min:1,max:3}, {c:'A-0024',rol:'carb',min:1,max:4}, {c:'A-0085',rol:'prot2',min:1,max:4} ]},
+        comp:[ {c:'A-0004',rol:'prot',min:3,max:6}, {c:'A-0023',rol:'carb',min:2,max:4}, {c:'A-0016',rol:'prot2',min:1,max:2} ]},
+      { id:'D05', nombre:'Pan con huevo y jamón de pavo', modos:['salvadoreno','fitness'],
+        comp:[ {c:'A-0003',rol:'prot',min:2,max:4}, {c:'A-0024',rol:'carb',min:1,max:3}, {c:'A-0085',rol:'prot2',min:2,max:4} ]},
       { id:'D06', nombre:'Avena con nueces y fruta', modos:['fitness'],
-        comp:[ {c:'A-0026',rol:'carb',min:1,max:4}, {c:'A-0043',rol:'grasa',min:1,max:2}, {rol:'fruta',min:1,max:1} ]},
-      { id:'D07', nombre:'Pupusa con frijoles', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0090',rol:'carb',min:1,max:4}, {c:'A-0016',rol:'prot',min:0.5,max:1} ]},
+        comp:[ {c:'A-0026',rol:'carb',min:2,max:4}, {c:'A-0043',rol:'grasa',min:1,max:2}, {c:'A-0014',rol:'prot',min:1,max:3}, {rol:'fruta',min:1,max:1} ]},
+      { id:'D07', nombre:'Pupusa con frijoles y queso', modos:['salvadoreno','economico'],
+        comp:[ {c:'A-0090',rol:'carb',min:2,max:4}, {c:'A-0016',rol:'prot',min:1,max:2}, {c:'A-0012',rol:'prot2',min:0.5,max:1.5} ]},
       { id:'D08', nombre:'Huevos con frijoles y tortilla', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0003',rol:'prot',min:1,max:3}, {c:'A-0023',rol:'carb',min:1,max:4}, {c:'A-0016',rol:'prot2',min:1,max:2} ]},
+        comp:[ {c:'A-0003',rol:'prot',min:2,max:4}, {c:'A-0023',rol:'carb',min:2,max:4}, {c:'A-0016',rol:'prot2',min:1,max:2} ]},
+      { id:'D09', nombre:'Avena con chía y fruta', modos:['fitness'],
+        comp:[ {c:'A-0026',rol:'carb',min:2,max:4}, {c:'A-0044',rol:'grasa',min:1,max:2}, {c:'A-0014',rol:'prot',min:1,max:3}, {rol:'fruta',min:1,max:1} ]},
+      { id:'D10', nombre:'Pancakes con fruta', modos:['fitness','salvadoreno'],
+        comp:[ {c:'A-0091',rol:'carb',min:1,max:2}, {c:'A-0003',rol:'prot',min:2,max:4}, {rol:'fruta',min:1,max:1} ]},
+      { id:'D11', nombre:'Wrap de huevo con vegetales', modos:['fitness'],
+        comp:[ {c:'A-0094',rol:'carb',min:1,max:2}, {c:'A-0003',rol:'prot',min:2,max:4}, {c:'A-0036',rol:'grasa',min:0.5,max:1.5} ]},
+      { id:'D12', nombre:'Tostadas francesas con fruta', modos:['salvadoreno','fitness'],
+        comp:[ {c:'A-0093',rol:'carb',min:1,max:2}, {c:'A-0003',rol:'prot',min:2,max:4}, {rol:'fruta',min:1,max:1} ]},
+      { id:'D13', nombre:'Pan integral con aguacate y huevo', modos:['fitness'],
+        comp:[ {c:'A-0025',rol:'carb',min:2,max:4}, {c:'A-0003',rol:'prot',min:2,max:4}, {c:'A-0036',rol:'grasa',min:0.5,max:2} ]},
+      { id:'D14', nombre:'Bowl de avena con marañón y fruta', modos:['fitness'],
+        comp:[ {c:'A-0026',rol:'carb',min:2,max:4}, {c:'A-0045',rol:'grasa',min:1,max:2}, {c:'A-0014',rol:'prot',min:1,max:3}, {rol:'fruta',min:1,max:1} ]},
+      { id:'D15', nombre:'Requesón con pan integral y fruta', modos:['fitness'],
+        comp:[ {c:'A-0015',rol:'prot',min:2,max:4}, {c:'A-0025',rol:'carb',min:2,max:4}, {rol:'fruta',min:1,max:1} ]},
     ],
     almuerzo: [
       { id:'A01', nombre:'Pollo con arroz y ensalada', modos:['salvadoreno','fitness','economico'],
-        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:0.5,max:3}, {rol:'vegetal',min:1,max:1} ]},
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'A02', nombre:'Carne con papa y vegetales', modos:['salvadoreno'],
-        comp:[ {c:'A-0005',rol:'prot',min:1,max:3}, {c:'A-0028',rol:'carb',min:0.5,max:3}, {rol:'vegetal',min:1,max:1} ]},
-      { id:'A03', nombre:'Pescado con arroz y ensalada', modos:['fitness','salvadoreno'],
-        comp:[ {c:'A-0010',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:0.5,max:3}, {rol:'vegetal',min:1,max:1} ]},
+        comp:[ {c:'A-0005',rol:'prot',min:1,max:3}, {c:'A-0028',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A03', nombre:'Tilapia con arroz integral y ensalada', modos:['fitness','salvadoreno'],
+        comp:[ {c:'A-0010',rol:'prot',min:1,max:3}, {c:'A-0022',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'A04', nombre:'Pollo con tortilla y aguacate', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0023',rol:'carb',min:1,max:4}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0023',rol:'carb',min:2,max:4}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'A05', nombre:'Carne molida con arroz y frijoles', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0006',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:0.5,max:2}, {c:'A-0016',rol:'prot2',min:1,max:2} ]},
+        comp:[ {c:'A-0006',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:1,max:3}, {c:'A-0016',rol:'prot2',min:1,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'A06', nombre:'Muslo de pollo con camote y vegetales', modos:['fitness','salvadoreno'],
-        comp:[ {c:'A-0002',rol:'prot',min:1,max:3}, {c:'A-0029',rol:'carb',min:0.5,max:3}, {rol:'vegetal',min:1,max:1} ]},
+        comp:[ {c:'A-0002',rol:'prot',min:1,max:3}, {c:'A-0029',rol:'carb',min:1,max:3}, {c:'A-0041',rol:'grasa',min:1,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'A07', nombre:'Atún con arroz y ensalada', modos:['economico','fitness'],
-        comp:[ {c:'A-0008',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:0.5,max:3}, {rol:'vegetal',min:1,max:1} ]},
+        comp:[ {c:'A-0008',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'A08', nombre:'Cerdo con arroz y frijoles', modos:['salvadoreno'],
-        comp:[ {c:'A-0007',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:0.5,max:2}, {c:'A-0017',rol:'prot2',min:1,max:2} ]},
+        comp:[ {c:'A-0007',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:1,max:3}, {c:'A-0017',rol:'prot2',min:1,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'A09', nombre:'Camarones con arroz y vegetales', modos:['fitness'],
-        comp:[ {c:'A-0011',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:0.5,max:3}, {rol:'vegetal',min:1,max:1} ]},
+        comp:[ {c:'A-0011',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'A10', nombre:'Pechuga con quinoa y vegetales', modos:['fitness'],
-        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0022',rol:'carb',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0035',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A11', nombre:'Carne con yuca y ensalada', modos:['salvadoreno'],
+        comp:[ {c:'A-0005',rol:'prot',min:1,max:3}, {c:'A-0030',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A12', nombre:'Pollo con plátano maduro y vegetales', modos:['salvadoreno'],
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0031',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A13', nombre:'Camarones con yuca y ensalada', modos:['salvadoreno'],
+        comp:[ {c:'A-0011',rol:'prot',min:1,max:3}, {c:'A-0030',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A14', nombre:'Bowl de quinoa con camarones', modos:['fitness'],
+        comp:[ {c:'A-0011',rol:'prot',min:1,max:3}, {c:'A-0035',rol:'carb',min:1,max:3}, {c:'A-0041',rol:'grasa',min:1,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A15', nombre:'Pasta con pollo y brócoli', modos:['fitness','salvadoreno'],
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0027',rol:'carb',min:1,max:3}, {c:'A-0037',rol:'grasa',min:0.5,max:1.5}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A16', nombre:'Tilapia con camote y espinaca', modos:['fitness'],
+        comp:[ {c:'A-0010',rol:'prot',min:1,max:3}, {c:'A-0029',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A17', nombre:'Atún con papa y aguacate', modos:['economico','fitness'],
+        comp:[ {c:'A-0008',rol:'prot',min:1,max:3}, {c:'A-0028',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A18', nombre:'Carne molida con pasta y vegetales', modos:['salvadoreno','fitness'],
+        comp:[ {c:'A-0006',rol:'prot',min:1,max:3}, {c:'A-0027',rol:'carb',min:1,max:3}, {c:'A-0037',rol:'grasa',min:0.5,max:1.5}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A19', nombre:'Pollo con arroz integral y aguacate', modos:['fitness'],
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0022',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'A20', nombre:'Lentejas con arroz y vegetales', modos:['economico','fitness'],
+        comp:[ {c:'A-0018',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
     ],
     cena: [
-      { id:'C01', nombre:'Pollo con vegetales', modos:['fitness','salvadoreno'],
-        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {rol:'vegetal',min:1,max:1} ]},
-      { id:'C02', nombre:'Huevos con aguacate y ensalada', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0003',rol:'prot',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
-      { id:'C03', nombre:'Atún con ensalada', modos:['fitness','economico'],
-        comp:[ {c:'A-0008',rol:'prot',min:1,max:3}, {c:'A-0041',rol:'grasa',min:1,max:2}, {rol:'vegetal',min:1,max:1} ]},
-      { id:'C04', nombre:'Carne con vegetales', modos:['salvadoreno','fitness'],
-        comp:[ {c:'A-0005',rol:'prot',min:1,max:3}, {rol:'vegetal',min:1,max:1} ]},
-      { id:'C05', nombre:'Pescado con camote y vegetales', modos:['fitness'],
-        comp:[ {c:'A-0010',rol:'prot',min:1,max:3}, {c:'A-0029',rol:'carb',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C01', nombre:'Pollo con arroz y aguacate', modos:['fitness','salvadoreno'],
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C02', nombre:'Huevos con tortilla y aguacate', modos:['salvadoreno','economico'],
+        comp:[ {c:'A-0003',rol:'prot',min:2,max:6}, {c:'A-0023',rol:'carb',min:2,max:4}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C03', nombre:'Atún con papa y nueces', modos:['fitness','economico'],
+        comp:[ {c:'A-0008',rol:'prot',min:1,max:3}, {c:'A-0028',rol:'carb',min:1,max:3}, {c:'A-0043',rol:'grasa',min:1,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C04', nombre:'Carne con camote y aguacate', modos:['salvadoreno','fitness'],
+        comp:[ {c:'A-0005',rol:'prot',min:1,max:3}, {c:'A-0029',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C05', nombre:'Tilapia con camote y almendras', modos:['fitness'],
+        comp:[ {c:'A-0010',rol:'prot',min:1,max:3}, {c:'A-0029',rol:'carb',min:1,max:3}, {c:'A-0041',rol:'grasa',min:1,max:2}, {rol:'vegetal',min:1,max:1} ]},
       { id:'C06', nombre:'Huevos con tortilla y frijoles', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0003',rol:'prot',min:1,max:3}, {c:'A-0023',rol:'carb',min:1,max:4}, {c:'A-0016',rol:'prot2',min:1,max:2} ]},
-      { id:'C07', nombre:'Pollo con arroz', modos:['salvadoreno','economico'],
-        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:0.5,max:2} ]},
-      { id:'C08', nombre:'Tilapia con vegetales', modos:['fitness'],
-        comp:[ {c:'A-0010',rol:'prot',min:1,max:3}, {rol:'vegetal',min:1,max:1} ]},
+        comp:[ {c:'A-0003',rol:'prot',min:2,max:6}, {c:'A-0023',rol:'carb',min:2,max:4}, {c:'A-0016',rol:'prot2',min:1,max:2}, {c:'A-0036',rol:'grasa',min:0.5,max:1.5} ]},
+      { id:'C07', nombre:'Pollo con plátano maduro y vegetales', modos:['salvadoreno'],
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0031',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C08', nombre:'Tilapia con papa y aguacate', modos:['fitness'],
+        comp:[ {c:'A-0010',rol:'prot',min:1,max:3}, {c:'A-0028',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C09', nombre:'Carne con yuca y aguacate', modos:['salvadoreno'],
+        comp:[ {c:'A-0005',rol:'prot',min:1,max:3}, {c:'A-0030',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C10', nombre:'Bowl de quinoa con pollo y aguacate', modos:['fitness'],
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0035',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C11', nombre:'Camarones con arroz integral y vegetales', modos:['fitness'],
+        comp:[ {c:'A-0011',rol:'prot',min:1,max:3}, {c:'A-0022',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C12', nombre:'Pasta con atún y vegetales', modos:['fitness','economico'],
+        comp:[ {c:'A-0008',rol:'prot',min:1,max:3}, {c:'A-0027',rol:'carb',min:1,max:3}, {c:'A-0037',rol:'grasa',min:0.5,max:1.5}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C13', nombre:'Claras con camote y nueces', modos:['fitness'],
+        comp:[ {c:'A-0004',rol:'prot',min:3,max:6}, {c:'A-0029',rol:'carb',min:1,max:3}, {c:'A-0043',rol:'grasa',min:1,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C14', nombre:'Pollo con chayote y aguacate', modos:['fitness','salvadoreno'],
+        comp:[ {c:'A-0001',rol:'prot',min:1,max:3}, {c:'A-0021',rol:'carb',min:1,max:3}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
+      { id:'C15', nombre:'Huevos con chipilín y tortilla', modos:['salvadoreno'],
+        comp:[ {c:'A-0003',rol:'prot',min:2,max:6}, {c:'A-0023',rol:'carb',min:2,max:4}, {c:'A-0036',rol:'grasa',min:0.5,max:2}, {rol:'vegetal',min:1,max:1} ]},
     ],
   },
-
   PREF_DEFAULT: {
     num_comidas:      4,
     ayuno:            false,
@@ -436,7 +483,7 @@ window.dieta = {
     const items = [];
     let cubierto = { prot: 0, grasa: 0, carb: 0 };
 
-    // 1. Fruta (portable, siempre)
+    // 1. Fruta (siempre)
     if (pool.frutas === 'todas') {
       const frutas = this.alimentos.filter(a => a.categoria === 'frutas');
       const fruta  = this.elegir(frutas, seed + 10);
@@ -447,7 +494,19 @@ window.dieta = {
       }
     }
 
-    // 2. Fruto seco como GRASA (no como proteína)
+    // 2. Carbo (avena o cereal) para cubrir meta de carbos
+    const carbFalt = meta.carb - cubierto.carb;
+    if (carbFalt > 5 && pool.carbo_base?.length > 0) {
+      const listaC = this.buscar(pool.carbo_base, p).filter(a => !items.find(i => i.codigo === a.codigo));
+      const c = this.elegir(listaC, seed + 11);
+      if (c) {
+        const porcs = this.calcPorciones(c, carbFalt, 'carb');
+        items.push(this.crearItem(c, porcs, 'carbohidratos'));
+        cubierto = this.sumar(cubierto, items[items.length-1]);
+      }
+    }
+
+    // 3. Fruto seco como GRASA para cubrir meta de grasas
     const grasaFalt = meta.grasa - cubierto.grasa;
     if (grasaFalt > 3 && pool.grasa_base?.length > 0) {
       const listaG = this.buscar(pool.grasa_base, p).filter(a => !items.find(i => i.codigo === a.codigo));
@@ -455,17 +514,7 @@ window.dieta = {
       if (g) {
         const porcs = this.calcPorciones(g, grasaFalt, 'grasa');
         items.push(this.crearItem(g, porcs, 'grasas'));
-      }
-    }
-
-    // 3. Avena u otro carbo si hay espacio
-    const carbFalt = meta.carb - cubierto.carb;
-    if (carbFalt > 10 && pool.carbo_base?.length > 0) {
-      const listaC = this.buscar(pool.carbo_base, p).filter(a => !items.find(i => i.codigo === a.codigo));
-      const c = this.elegir(listaC, seed + 11);
-      if (c) {
-        const porcs = this.calcPorciones(c, carbFalt, 'carb');
-        items.push(this.crearItem(c, porcs, 'carbohidratos'));
+        cubierto = this.sumar(cubierto, items[items.length-1]);
       }
     }
 
