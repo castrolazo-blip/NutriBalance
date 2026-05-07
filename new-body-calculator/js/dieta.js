@@ -380,24 +380,26 @@ window.dieta = {
 
       const cat = comp.rol === 'carb' ? 'carbohidratos' : comp.rol === 'grasa' ? 'grasas' : 'proteinas';
 
-      // Calcular porciones según rol
-      let objetivo = 1;
+      // Calcular porciones directamente desde macros objetivo
+      let objetivo = comp.min;
       if (comp.rol === 'prot') {
         const tieneP2 = plato.comp.some(c => c.rol === 'prot2');
-        objetivo = meta.prot * (tieneP2 ? 0.65 : 0.80) / (alim.proteina_g || 1);
+        const pctProt = tieneP2 ? 0.65 : 1.0;
+        objetivo = (meta.prot * pctProt) / (alim.proteina_g || 1);
       } else if (comp.rol === 'prot2') {
-        objetivo = Math.max(comp.min, (meta.prot - cubierto.prot) / (alim.proteina_g || 1));
+        objetivo = (meta.prot - cubierto.prot) / (alim.proteina_g || 1);
       } else if (comp.rol === 'grasa') {
-        objetivo = Math.max(comp.min, (meta.grasa - cubierto.grasa) * 0.90 / (alim.grasa_g || 1));
+        objetivo = (meta.grasa - cubierto.grasa) / (alim.grasa_g || 1);
       } else if (comp.rol === 'carb') {
-        objetivo = Math.max(comp.min, (meta.carb - cubierto.carb) * 0.60 / (alim.carbo_g || 1));
+        objetivo = (meta.carb - cubierto.carb) / (alim.carbo_g || 1);
       }
 
-      // Limitar entre min y max del plato
-      const esEntero = this.PORCION_ENTERA[alim.codigo];
+      // Limitar: mínimo del plato, máximo = MAX_PORCIONES global
+      const esEntero  = this.PORCION_ENTERA[alim.codigo];
+      const maxGlobal = this.maxPorc(alim.codigo);
       let porcs = esEntero
-        ? Math.max(comp.min, Math.min(Math.round(objetivo), comp.max))
-        : Math.max(comp.min, Math.min(Math.round(objetivo * 2) / 2, comp.max));
+        ? Math.max(comp.min, Math.min(Math.round(objetivo), maxGlobal))
+        : Math.max(comp.min, Math.min(Math.round(objetivo * 2) / 2, maxGlobal));
 
       const item = this.crearItem(alim, porcs, cat);
       item._compMin = comp.min;
